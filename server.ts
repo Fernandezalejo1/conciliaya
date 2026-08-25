@@ -35,7 +35,7 @@ async function startServer() {
   });
 
   // AI Cryptic Reference Analysis Endpoint
-  app.post('/api/gemini/analyze-cryptic', async (req, res) => {
+  app.post('/api/analyze-cryptic', async (req, res) => {
     try {
       const { movement, clients = [], invoices = [] } = req.body;
 

@@ -729,7 +729,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!mov) return null;
 
     try {
-      const response = await fetch('/api/gemini/analyze-cryptic', {
+      const response = await fetch('/api/analyze-cryptic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
