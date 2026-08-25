@@ -118,19 +118,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const [clientCredits, setClientCredits] = useState<ClientCredit[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY + '_credits');
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 'cred_01',
-        cliente_id: 'cli_05',
-        cliente_nombre: 'Gastronomía Costera (Restaurante El Faro)',
-        monto_original: 2500,
-        saldo_disponible: 2500,
-        moneda: 'UYU',
-        fecha: '2026-07-20',
-        estado: 'disponible',
-        motivo: 'Excedente en transferencia previa'
-      }
-    ];
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => {
@@ -1080,19 +1068,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setBankMovements(initialBankMovements);
     setLearnedAliases(initialLearnedAliases);
     setPaymentApplications([]);
-    setClientCredits([
-      {
-        id: 'cred_01',
-        cliente_id: 'cli_05',
-        cliente_nombre: 'Gastronomía Costera (Restaurante El Faro)',
-        monto_original: 2500,
-        saldo_disponible: 2500,
-        moneda: 'UYU',
-        fecha: '2026-07-20',
-        estado: 'disponible',
-        motivo: 'Excedente en transferencia previa'
-      }
-    ]);
+    setClientCredits([]);
     setAuditLogs([]);
     setOfficialReceipts([]);
     setAccountingEntries([]);
