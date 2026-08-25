@@ -5,6 +5,7 @@ import {
   FileSpreadsheet,
   History,
   LayoutDashboard,
+  LogOut,
   RotateCcw,
   Sparkles,
   UploadCloud,
@@ -16,7 +17,11 @@ import {
 } from 'lucide-react';
 import { useConcilia } from '../context/ConciliaContext';
 
-export const Navbar: React.FC = () => {
+interface NavbarProps {
+  onLogout?: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ onLogout }) => {
   const {
     company,
     activeTab,
@@ -69,7 +74,7 @@ export const Navbar: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-bold text-slate-900 text-lg tracking-tight">Concilia<span className="text-blue-600">IA</span></span>
+                <span className="font-bold text-slate-900 text-lg tracking-tight">Concilia<span className="text-blue-600">YA</span></span>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
                   MVP Cuentas por Cobrar
                 </span>
@@ -109,6 +114,17 @@ export const Navbar: React.FC = () => {
             </button>
 
             <div className="h-8 w-px bg-slate-200 mx-1 hidden sm:block"></div>
+
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                title="Cerrar sesión"
+                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-lg transition-colors cursor-pointer border border-transparent"
+              >
+                <LogOut className="h-3.5 w-3.5 mr-1.5" />
+                Salir
+              </button>
+            )}
 
             <div className="flex items-center space-x-2 text-xs text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/80">
               <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
