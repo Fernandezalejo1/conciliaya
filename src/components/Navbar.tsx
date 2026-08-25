@@ -60,7 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onLogout }) => {
     },
     { id: 'aliases', label: 'Alias Aprendidos', icon: Sparkles },
     { id: 'audit', label: 'Auditoría', icon: History },
-    { id: 'settings', label: 'Configuración', icon: Settings },
+    { id: 'settings', label: '', icon: Settings },
   ];
 
   return (
@@ -146,6 +146,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onLogout }) => {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
+                  title={item.label || 'Configuración'}
                   className={`
                     group inline-flex items-center px-3.5 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap
                     ${isActive
