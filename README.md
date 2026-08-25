@@ -43,12 +43,17 @@ ConciliaYA es una herramienta web para empresas distribuidoras e importadoras qu
 
 ## Capturas de pantalla
 
-<!-- Reemplazá estos paths con tus screenshots reales -->
-<!-- 
-| Dashboard | Conciliación | Análisis IA |
-|:---------:|:------------:|:-----------:|
-| ![Dashboard](assets/screenshot-dashboard.png) | ![Conciliación](assets/screenshot-conciliacion.png) | ![IA](assets/screenshot-ia.png) |
--->
+| Dashboard | Subir Datos | Conciliación |
+|:---------:|:-----------:|:------------:|
+| ![Dashboard](assets/01-dashboard.png) | ![Upload](assets/02-upload.png) | ![Conciliación](assets/03-reconciliacion.png) |
+
+| Matching IA | Estados de Cuenta | Contabilidad |
+|:-----------:|:-----------------:|:------------:|
+| ![Matching](assets/04-matching.png) | ![Estados](assets/05-estados-cuenta.png) | ![Contabilidad](assets/06-contabilidad.png) |
+
+| Auditoría | Ajustes |
+|:---------:|:-------:|
+| ![Auditoría](assets/07-auditoria.png) | ![Ajustes](assets/08-ajustes.png) |
 
 ## Stack tecnológico
 
