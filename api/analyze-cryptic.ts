@@ -86,7 +86,7 @@ REGLAS DE ANÁLISIS:
 4. Devuelve un JSON estrictamente estructurado sin formato markdown adicional.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -94,8 +94,10 @@ REGLAS DE ANÁLISIS:
       }
     });
 
-    const responseText = response.text || '{}';
-    const parsed = JSON.parse(responseText);
+    const rawText = response.text || '{}';
+    // Strip markdown code fences if present
+    const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const parsed = JSON.parse(cleaned);
 
     return res.json({
       ...parsed,
