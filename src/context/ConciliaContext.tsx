@@ -67,6 +67,11 @@ interface ConciliaContextType {
   importInvoices: (newInvoices: Invoice[]) => void;
   importBankMovements: (newMovements: BankMovement[]) => void;
   
+  // Client Management
+  addClient: (client: Omit<Client, 'id' | 'totalInvoiced' | 'totalPaid' | 'currentBalance' | 'creditBalance'>) => void;
+  updateClient: (id: string, updates: Partial<Client>) => void;
+  deleteClient: (id: string) => void;
+  
   // Email reminders
   logEmailReminder: (clientId: string, clientName: string, recipientEmail: string, subject: string, balance: number, invoiceNumbers: string[]) => void;
   
@@ -1060,6 +1065,54 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCompany(prev => ({ ...prev, usdExchangeRate: rate }));
   };
 
+  const addClient = (clientData: Omit<Client, 'id' | 'totalInvoiced' | 'totalPaid' | 'currentBalance' | 'creditBalance'>) => {
+    const newClient: Client = {
+      ...clientData,
+      id: 'cli_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+      totalInvoiced: 0,
+      totalPaid: 0,
+      currentBalance: 0,
+      creditBalance: 0
+    };
+    setClients(prev => [...prev, newClient]);
+
+    const audit: AuditLog = {
+      id: 'aud_' + Date.now(),
+      fecha: new Date().toISOString(),
+      usuario: 'Operador Admin',
+      accion: 'create_client',
+      entidad: 'cliente',
+      entidad_id: newClient.id,
+      descripcion: `Nuevo cliente registrado: ${newClient.name} (RUT: ${newClient.rut_ci})`,
+      detalles: { cliente_id: newClient.id, cliente_nombre: newClient.name },
+      revertible: false
+    };
+    setAuditLogs(prev => [audit, ...prev]);
+  };
+
+  const updateClient = (id: string, updates: Partial<Client>) => {
+    setClients(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
+  const deleteClient = (id: string) => {
+    const client = clients.find(c => c.id === id);
+    if (!client) return;
+    setClients(prev => prev.filter(c => c.id !== id));
+
+    const audit: AuditLog = {
+      id: 'aud_' + Date.now(),
+      fecha: new Date().toISOString(),
+      usuario: 'Operador Admin',
+      accion: 'delete_client',
+      entidad: 'cliente',
+      entidad_id: id,
+      descripcion: `Cliente eliminado: ${client.name}`,
+      detalles: { cliente_id: id, cliente_nombre: client.name },
+      revertible: false
+    };
+    setAuditLogs(prev => [audit, ...prev]);
+  };
+
   const resetToDemo = () => {
     localStorage.clear();
     setCompany(initialCompany);
@@ -1121,6 +1174,9 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteLearnedAlias,
         importInvoices,
         importBankMovements,
+        addClient,
+        updateClient,
+        deleteClient,
         logEmailReminder,
         setUsdExchangeRate,
         resetToDemo,

@@ -10,6 +10,7 @@ import { LearnedAliasesView } from './components/LearnedAliasesView';
 import { AuditView } from './components/AuditView';
 import { SettingsView } from './components/SettingsView';
 import { LoginView } from './components/LoginView';
+import { ClientsView } from './components/ClientsView';
 
 const SESSION_KEY = 'conciliaya_session';
 
@@ -24,6 +25,7 @@ const MainContent: React.FC = () => {
       {activeTab === 'statements' && <AccountStatementView />}
       {activeTab === 'accounting' && <AccountingView />}
       {activeTab === 'aliases' && <LearnedAliasesView />}
+      {activeTab === 'clients' && <ClientsView />}
       {activeTab === 'audit' && <AuditView />}
       {activeTab === 'settings' && <SettingsView />}
     </main>

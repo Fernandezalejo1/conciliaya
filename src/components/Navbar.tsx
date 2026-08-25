@@ -42,6 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onLogout }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'upload', label: 'Carga de Archivos', icon: UploadCloud },
+    { id: 'clients', label: 'Clientes', icon: Users },
     {
       id: 'reconciliation',
       label: 'Conciliación',
