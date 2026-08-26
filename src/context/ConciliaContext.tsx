@@ -423,8 +423,8 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       creditBalance: 0
     } as Client;
 
-    // If the invoice was already paid in the source, just confirm the movement
-    // without generating new payments, receipts, or accounting entries.
+    // If the invoice was already paid in the source, confirm the movement
+    // and generate receipt + accounting entry for audit trail.
     if (sugerencia.tipo === 'ya_conciliado') {
       setBankMovements(prev => prev.map(m => {
         if (m.id === movementId) {
@@ -441,6 +441,22 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
         return m;
       }));
+
+      // Find the matched invoice for the receipt detail
+      const matchedInv = invoices.find(i => i.numero === (sugerencia.facturas?.[0]?.factura_numero || ''));
+      const receiptInvoices = matchedInv ? [{
+        factura_id: matchedInv.id,
+        factura_numero: matchedInv.numero,
+        monto_aplicado: mov.monto,
+        saldo_restante: 0
+      }] : [];
+
+      const { receipt, entry } = createReceiptAndJournal(
+        mov, client, receiptInvoices, 0, 0, 0
+      );
+      setOfficialReceipts(prev => [...prev, receipt]);
+      setAccountingEntries(prev => [...prev, entry]);
+
       const aliasToLearn = customAliasText || mov.descripcion_cruda;
       recordAlias(aliasToLearn, sugerencia.cliente_id, client.name);
       const audit: AuditLog = {
@@ -456,7 +472,9 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           cliente_id: sugerencia.cliente_id,
           cliente_nombre: client.name,
           monto: mov.monto,
-          facturas_afectadas: [],
+          recibo_id: receipt.id,
+          asiento_id: entry.id,
+          facturas_afectadas: receiptInvoices.map(f => ({ factura_id: f.factura_id, numero: f.factura_numero, monto_aplicado: f.monto_aplicado })),
         },
         revertible: false,
         reverted: false
