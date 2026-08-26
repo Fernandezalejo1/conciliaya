@@ -467,6 +467,11 @@ export function validateInvoicesBatch(
       if (monStr.includes('USD') || monStr.includes('DOL') || monStr.includes('U$S') || monStr.includes('US$')) {
         currency = 'USD';
       }
+    } else if (columnMap.importe) {
+      const importeHeader = String(columnMap.importe).toUpperCase();
+      if (importeHeader.includes('USD') || importeHeader.includes('DOL') || importeHeader.includes('U$S') || importeHeader.includes('US$')) {
+        currency = 'USD';
+      }
     }
 
     // Row status summary
@@ -754,6 +759,12 @@ export function validateBankMovementsBatch(
     if (rawMoneda) {
       const monStr = String(rawMoneda).toUpperCase().trim();
       if (monStr.includes('USD') || monStr.includes('DOL') || monStr.includes('U$S') || monStr.includes('US$')) {
+        currency = 'USD';
+      }
+    } else if (columnMap.monto) {
+      // Also detect currency from the amount column header (e.g., "Monto (USD)")
+      const montoHeader = String(columnMap.monto).toUpperCase();
+      if (montoHeader.includes('USD') || montoHeader.includes('DOL') || montoHeader.includes('U$S') || montoHeader.includes('US$')) {
         currency = 'USD';
       }
     }

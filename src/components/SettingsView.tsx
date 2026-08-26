@@ -27,6 +27,7 @@ export const SettingsView: React.FC = () => {
     runMatchingEngine,
     resetToDemo,
     clearAllData,
+    validateInvariant,
     bankMovements,
     invoices,
     clients,
@@ -44,6 +45,7 @@ export const SettingsView: React.FC = () => {
   const [usdRate, setUsdRate] = useState(company.usdExchangeRate || 42.5);
   const [autoMatchThreshold, setAutoMatchThreshold] = useState(company.autoMatchThreshold * 100);
   const [savedMsg, setSavedMsg] = useState(false);
+  const [invariantResult, setInvariantResult] = useState<string | null>(null);
 
   // In-app confirmation modal states
   const [showResetModal, setShowResetModal] = useState(false);
@@ -276,6 +278,32 @@ export const SettingsView: React.FC = () => {
             <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
             <span>Vaciar Base de Datos</span>
           </button>
+        </div>
+
+        {/* Invariant Check */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-700">
+          <button
+            onClick={() => {
+              const violations = validateInvariant();
+              if (violations.length === 0) {
+                setInvariantResult('OK: Todos los clientes cuadran. Créditos bancarios = Abonos a facturas + Saldo a favor.');
+              } else {
+                const details = violations.map(v =>
+                  `${v.clientName}:.bank=${v.bankCredits.toLocaleString()} .applied=${v.appliedPayments.toLocaleString()} .credit=${v.creditBalance.toLocaleString()} diff=${v.diff.toLocaleString()}`
+                ).join('\n');
+                setInvariantResult(`VIOLATIONS:\n${details}`);
+              }
+            }}
+            className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl transition-colors flex items-center space-x-1.5"
+          >
+            <Shield className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+            <span>Validar Invariante de Conciliación</span>
+          </button>
+          {invariantResult && (
+            <pre className={`mt-2 p-3 rounded-xl text-xs whitespace-pre-wrap font-mono ${invariantResult.startsWith('OK') ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'}`}>
+              {invariantResult}
+            </pre>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { BankMovement, Client, Company, Invoice, LearnedAlias, SuggestedMatch } from '../types';
+import { BankMovement, Client, ClientCredit, Company, Invoice, LearnedAlias, PaymentApplication, SuggestedMatch } from '../types';
 
 /**
  * Extracts clean client name from bank description by removing all noise:
@@ -939,6 +939,42 @@ export function runFIFOAllocation(
       return da - db;
     });
 
+    // PRE-PASS: Check for exact amount matches against ALL invoices (including paid ones).
+    // If a bank movement exactly matches an already-paid invoice, mark it as "ya_conciliado"
+    // (already reconciled) without generating new payments. This prevents the FIFO engine
+    // from redirecting payments meant for paid invoices to wrong open invoices.
+    const allClientInvoicesAll = invoices.filter(i => {
+      if (i.cliente_id === clientId) return true;
+      const invNames = [i.cliente_nombre, ...(i.cliente_nombre_alt || [])].filter(Boolean).map(n => normalizeText(n));
+      const clientNorm = normalizeText(client.name);
+      return invNames.some(n => n === clientNorm || stringSimilarity(n, clientNorm) > 0.85);
+    });
+
+    const alreadyReconciledMovs = new Set<string>();
+    for (const { mov } of movEntries) {
+      for (const inv of allClientInvoicesAll) {
+        const invTotal = (inv.monto_con_iva || inv.importe);
+        if (Math.abs(mov.monto - invTotal) < 0.01) {
+          // Exact amount match — check if invoice is already paid
+          if (inv.estado === 'pagada' || inv.saldo_pendiente <= 0.01) {
+            results.set(mov.id, {
+              cliente_id: client.id,
+              cliente_nombre: client.name,
+              confianza: 100,
+              motivo: `Pago exacto a Factura ${inv.numero} (ya conciliada en origen)`,
+              tipo: 'ya_conciliado',
+              facturas: [],
+            });
+            alreadyReconciledMovs.add(mov.id);
+          }
+          break;
+        }
+      }
+    }
+
+    // Filter out already-reconciled movements from FIFO processing
+    const fifoMovEntries = movEntries.filter(e => !alreadyReconciledMovs.has(e.mov.id));
+
     // Get open invoices for this client, sorted by date (FIFO)
     const allClientInvoices = invoices
       .filter(i => {
@@ -960,8 +996,8 @@ export function runFIFOAllocation(
       invoiceRemaining.set(inv.id, inv.saldo_pendiente);
     }
 
-    // Process each movement in chronological order
-    for (const { mov, extractedName } of movEntries) {
+    // Process each movement in chronological order (only those not already reconciled)
+    for (const { mov, extractedName } of fifoMovEntries) {
       // Sub-pool matching: when a client has invoices with different razonSocial values
       // (e.g., Cardinal has "Cordero SA" and "CARDINAL CONSTRUCCIONES SAS"),
       // if the movement name matches a specific razonSocial, only allocate to those invoices.
@@ -1150,4 +1186,66 @@ export function calculateAging(invoices: Invoice[]): {
   });
 
   return summary;
+}
+
+/**
+ * Regression invariant: for each client, verify that:
+ *   sum(bank credits received from confirmed movements)
+ *   == sum(applied payments to invoices) + credit_balance
+ *
+ * Returns an array of violations (empty = all good).
+ */
+export function validateReconciliationInvariant(
+  bankMovements: BankMovement[],
+  paymentApplications: PaymentApplication[],
+  clientCredits: ClientCredit[],
+  clients: Client[]
+): Array<{ clientName: string; bankCredits: number; appliedPayments: number; creditBalance: number; diff: number }> {
+  const violations: Array<{ clientName: string; bankCredits: number; appliedPayments: number; creditBalance: number; diff: number }> = [];
+
+  // Group confirmed bank credits by client
+  const bankCreditsByClient = new Map<string, number>();
+  for (const mov of bankMovements) {
+    if (mov.estado_conciliacion === 'conciliado_manual' && mov.es_credito && mov.monto > 0 && mov.cliente_sugerido_id) {
+      const cur = bankCreditsByClient.get(mov.cliente_sugerido_id) || 0;
+      bankCreditsByClient.set(mov.cliente_sugerido_id, cur + mov.monto);
+    }
+  }
+
+  // Group applied payments by client
+  const paymentsByClient = new Map<string, number>();
+  for (const pa of paymentApplications) {
+    const cur = paymentsByClient.get(pa.cliente_id) || 0;
+    paymentsByClient.set(pa.cliente_id, cur + pa.monto_aplicado);
+  }
+
+  // Group credits by client
+  const creditsByClient = new Map<string, number>();
+  for (const cr of clientCredits) {
+    if (cr.estado === 'disponible' || cr.estado === 'parcial') {
+      const cur = creditsByClient.get(cr.cliente_id) || 0;
+      creditsByClient.set(cr.cliente_id, cur + cr.saldo_disponible);
+    }
+  }
+
+  for (const client of clients) {
+    const bankCredits = bankCreditsByClient.get(client.id) || 0;
+    if (bankCredits === 0) continue; // Skip clients with no confirmed bank credits
+
+    const appliedPayments = paymentsByClient.get(client.id) || 0;
+    const creditBalance = creditsByClient.get(client.id) || 0;
+    const diff = Math.abs(bankCredits - (appliedPayments + creditBalance));
+
+    if (diff > 0.01) {
+      violations.push({
+        clientName: client.name,
+        bankCredits,
+        appliedPayments,
+        creditBalance,
+        diff: bankCredits - (appliedPayments + creditBalance)
+      });
+    }
+  }
+
+  return violations;
 }

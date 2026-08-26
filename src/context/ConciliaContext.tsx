@@ -19,7 +19,7 @@ import {
   initialInvoices,
   initialLearnedAliases
 } from '../data/mockData';
-import { matchBankMovement, runFIFOAllocation } from '../utils/matchingEngine';
+import { matchBankMovement, runFIFOAllocation, validateReconciliationInvariant } from '../utils/matchingEngine';
 
 interface ConciliaContextType {
   company: Company;
@@ -81,6 +81,9 @@ interface ConciliaContextType {
   // Reset & Helpers
   resetToDemo: () => void;
   clearAllData: () => void;
+
+  // Validation
+  validateInvariant: () => Array<{ clientName: string; bankCredits: number; appliedPayments: number; creditBalance: number; diff: number }>;
 }
 
 const ConciliaContext = createContext<ConciliaContextType | null>(null);
@@ -412,6 +415,48 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       creditBalance: 0
     } as Client;
 
+    // If the invoice was already paid in the source, just confirm the movement
+    // without generating new payments, receipts, or accounting entries.
+    if (sugerencia.tipo === 'ya_conciliado') {
+      setBankMovements(prev => prev.map(m => {
+        if (m.id === movementId) {
+          return {
+            ...m,
+            estado_conciliacion: 'conciliado_manual',
+            fecha_conciliacion: new Date().toISOString(),
+            conciliado_por: 'Operador Admin',
+            cliente_sugerido_id: sugerencia.cliente_id,
+            cliente_sugerido_name: sugerencia.cliente_nombre,
+            confianza: 100,
+            motivo_sugerencia: sugerencia.motivo,
+          };
+        }
+        return m;
+      }));
+      const aliasToLearn = customAliasText || mov.descripcion_cruda;
+      recordAlias(aliasToLearn, sugerencia.cliente_id, client.name);
+      const audit: AuditLog = {
+        id: 'aud_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+        fecha: new Date().toISOString(),
+        usuario: 'Operador Admin',
+        accion: 'confirm_suggested',
+        entidad: 'movimiento',
+        entidad_id: mov.id,
+        descripcion: `Confirmado como ya conciliado: $${mov.monto.toLocaleString()} ${mov.moneda || 'UYU'} para ${client.name} (${sugerencia.motivo})`,
+        detalles: {
+          movimiento_id: mov.id,
+          cliente_id: sugerencia.cliente_id,
+          cliente_nombre: client.name,
+          monto: mov.monto,
+          facturas_afectadas: [],
+        },
+        revertible: false,
+        reverted: false
+      };
+      setAuditLogs(prev => [audit, ...prev]);
+      return;
+    }
+
     const withholding = withholdingAmount !== undefined ? withholdingAmount : (sugerencia.retencion_estimada || 0);
     const bankFee = bankFeeAmount !== undefined ? bankFeeAmount : (sugerencia.gasto_bancario_estimado || 0);
 
@@ -426,10 +471,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const invIndex = updated.findIndex(i => i.id === item.factura_id);
         if (invIndex !== -1) {
           const currentInv = updated[invIndex];
-          // If there was retention closing the remainder, mark as paid
-          const applyAmount = withholding > 0 && Math.abs(currentInv.saldo_pendiente - (item.monto_a_aplicar + withholding)) < 1
-            ? currentInv.saldo_pendiente
-            : item.monto_a_aplicar;
+          const applyAmount = item.monto_a_aplicar;
 
           const newSaldo = Math.max(0, currentInv.saldo_pendiente - applyAmount);
           const newEstado = newSaldo <= 0.01 ? 'pagada' : 'parcial';
@@ -449,7 +491,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             cliente_nombre: client.name,
             monto_aplicado: item.monto_a_aplicar,
             moneda: currentInv.moneda || 'UYU',
-            fecha: new Date().toISOString().split('T')[0],
+            fecha: mov.fecha || new Date().toISOString().split('T')[0],
             confirmado_por: 'Operador Admin'
           };
           newPaymentApps.push(paymentApp);
@@ -480,7 +522,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         saldo_disponible: excess,
         moneda: mov.moneda || 'UYU',
         origen_movimiento_id: mov.id,
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: mov.fecha || new Date().toISOString().split('T')[0],
         estado: 'disponible',
         motivo: `Sobrante de transferencia bancaria (${mov.referencia || mov.id})`
       };
@@ -625,7 +667,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             cliente_nombre: client.name,
             monto_aplicado: item.monto,
             moneda: currentInv.moneda || 'UYU',
-            fecha: new Date().toISOString().split('T')[0],
+            fecha: mov.fecha || new Date().toISOString().split('T')[0],
             confirmado_por: 'Operador Admin'
           };
           newPaymentApps.push(paymentApp);
@@ -655,7 +697,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         saldo_disponible: excessToCredit,
         moneda: mov.moneda || 'UYU',
         origen_movimiento_id: mov.id,
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: mov.fecha || new Date().toISOString().split('T')[0],
         estado: 'disponible',
         motivo: `Excedente asignado manualmente (${mov.referencia || mov.id})`
       };
@@ -1211,6 +1253,9 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoices, clients, learnedAliases]);
 
+  const validateInvariant = () =>
+    validateReconciliationInvariant(bankMovements, paymentApplications, clientCredits, clients);
+
   return (
     <ConciliaContext.Provider
       value={{
@@ -1246,7 +1291,8 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         logEmailReminder,
         setUsdExchangeRate,
         resetToDemo,
-        clearAllData
+        clearAllData,
+        validateInvariant
       }}
     >
       {children}

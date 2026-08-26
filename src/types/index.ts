@@ -73,7 +73,7 @@ export interface SuggestedMatch {
   cliente_nombre: string;
   confianza: number; // 0 to 100
   motivo: string;
-  tipo: 'exacto_factura' | 'exacto_monto_alias' | 'similitud_cliente' | 'multi_factura' | 'pago_parcial' | 'sobrepago' | 'retencion_o_gasto' | 'bimonetario';
+  tipo: 'exacto_factura' | 'exacto_monto_alias' | 'similitud_cliente' | 'multi_factura' | 'pago_parcial' | 'sobrepago' | 'retencion_o_gasto' | 'bimonetario' | 'ya_conciliado';
   facturas: Array<{
     factura_id: string;
     factura_numero: string;
