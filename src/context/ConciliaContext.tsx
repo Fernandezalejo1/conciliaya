@@ -1034,15 +1034,6 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       runMatchingEngine(updatedInvoices, updatedClients, learnedAliases);
     }, 50);
   };
-      }
-    }
-    setClients(updatedClients);
-
-    // Re-run matching with fresh data immediately
-    setTimeout(() => {
-      runMatchingEngine(updatedInvoices, updatedClients, learnedAliases);
-    }, 50);
-  };
 
   const importBankMovements = (newMovements: BankMovement[]) => {
     setBankMovements(prev => [...newMovements, ...prev]);
