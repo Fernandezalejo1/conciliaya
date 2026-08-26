@@ -514,9 +514,14 @@ export function validateInvoicesBatch(
       }
 
       // Compute saldo_pendiente from monto_pagado
+      // $1 tolerance for overpayment rounding noise: if pagado exceeds conIva by < $1,
+      // treat as rounding and keep saldo at zero (no allocation needed)
       const parsedPagado = parseRobustNumber(rawPagado);
       const montoPagado = parsedPagado.isValid ? (parsedPagado.value || 0) : 0;
-      const saldoPendiente = Math.max(0, Math.round((montoConIva - montoPagado) * 100) / 100);
+      const rawSaldo = montoConIva - montoPagado;
+      const saldoPendiente = rawSaldo > 0
+        ? Math.round(rawSaldo * 100) / 100
+        : 0; // overpaid (even by cents) → zero pending
 
       // Determine estado based on payment
       let estadoFactura: 'pendiente' | 'parcial' | 'pagada' = 'pendiente';

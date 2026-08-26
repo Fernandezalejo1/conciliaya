@@ -59,10 +59,11 @@ export const ReconciliationView: React.FC = () => {
   const [taxWithholding, setTaxWithholding] = useState<number>(0);
   const [bankFee, setBankFee] = useState<number>(0);
 
-  // Counts
-  const autoItems = bankMovements.filter(m => m.estado_conciliacion === 'auto');
-  const auto100Items = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.confianza >= 99);
-  const auto85Items = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.confianza >= 85 && m.confianza < 99);
+  // Counts — exclude ya_conciliado from auto counts (they're already reconciled)
+  const autoItems = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.sugerencia?.tipo !== 'ya_conciliado');
+  const auto100Items = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.sugerencia?.tipo !== 'ya_conciliado' && m.confianza >= 99);
+  const auto85Items = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.sugerencia?.tipo !== 'ya_conciliado' && m.confianza >= 85 && m.confianza < 99);
+  const yaConciliadoItems = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.sugerencia?.tipo === 'ya_conciliado');
   const suggestedItems = bankMovements.filter(m => m.estado_conciliacion === 'sugerido');
   const unidentifiedItems = bankMovements.filter(m => m.estado_conciliacion === 'sin_identificar');
   const reconciledItems = bankMovements.filter(m => m.estado_conciliacion === 'conciliado_manual');
@@ -251,7 +252,7 @@ export const ReconciliationView: React.FC = () => {
               className="w-full md:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-colors flex items-center justify-center space-x-2"
             >
               <CheckCircle2 className="h-4 w-4" />
-              <span>Aprobar 100% Automáticos ({autoItems.length})</span>
+              <span>Aprobar Automáticos ({autoItems.length})</span>
             </button>
           )}
         </div>
