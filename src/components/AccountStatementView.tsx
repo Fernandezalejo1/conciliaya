@@ -4,6 +4,7 @@ import {
   ArrowUpRight,
   Building2,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Coins,
   CreditCard,
@@ -271,14 +272,37 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
 
         {/* Client Picker & Actions */}
         <div className="flex items-center space-x-3 w-full md:w-auto">
-          <div className="relative w-full md:w-64">
+          <div className="relative w-full md:w-72">
+            <Users className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <select
+              value={selectedClientId}
+              onChange={(e) => setSelectedClientId(e.target.value)}
+              className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+            >
+              {clients
+                .filter(c =>
+                  !clientSearchTerm ||
+                  c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
+                  (c.alias_conocidos || []).some(a => a.toLowerCase().includes(clientSearchTerm.toLowerCase())) ||
+                  c.rut_ci.includes(clientSearchTerm)
+                )
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.currentBalance > 0 ? ` — Debe ${company.currencySymbol}${c.currentBalance.toLocaleString('es-UY')}` : ' — al día'}
+                  </option>
+                ))}
+            </select>
+            <ChevronDown className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+
+          <div className="relative w-full md:w-56">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar cliente..."
+              placeholder="Filtrar clientes..."
               value={clientSearchTerm}
               onChange={(e) => setClientSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -298,43 +322,6 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
             <span>CSV</span>
           </button>
         </div>
-      </div>
-
-      {/* Client Quick Chips selector */}
-      <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-none">
-        {clients
-          .filter(c =>
-            !clientSearchTerm ||
-            c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()) ||
-            c.rut_ci.includes(clientSearchTerm)
-          )
-          .map((c) => {
-            const isSelected = c.id === selectedClientId;
-            return (
-              <button
-                key={c.id}
-                onClick={() => setSelectedClientId(c.id)}
-                className={`
-                  px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center space-x-2 border
-                  ${isSelected
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                  }
-                `}
-              >
-                <span>{c.name}</span>
-                {c.currentBalance > 0 && (
-                  <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      isSelected ? 'bg-blue-800 text-blue-100' : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    ${(c.currentBalance / 1000).toFixed(0)}k
-                  </span>
-                )}
-              </button>
-            );
-          })}
       </div>
 
       {selectedClient && (
