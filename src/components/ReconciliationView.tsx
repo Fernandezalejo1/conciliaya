@@ -44,7 +44,7 @@ export const ReconciliationView: React.FC = () => {
     setActiveTab
   } = useConcilia();
 
-  const [activeSubTab, setActiveSubTab] = useState<'pending' | 'auto' | 'reconciled' | 'all'>('pending');
+  const [activeSubTab, setActiveSubTab] = useState<'sin_identificar' | 'sugeridos' | 'auto100' | 'auto85' | 'reconciled' | 'all'>('sin_identificar');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
@@ -61,6 +61,8 @@ export const ReconciliationView: React.FC = () => {
 
   // Counts
   const autoItems = bankMovements.filter(m => m.estado_conciliacion === 'auto');
+  const auto100Items = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.confianza >= 99);
+  const auto85Items = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.confianza >= 85 && m.confianza < 99);
   const suggestedItems = bankMovements.filter(m => m.estado_conciliacion === 'sugerido');
   const unidentifiedItems = bankMovements.filter(m => m.estado_conciliacion === 'sin_identificar');
   const reconciledItems = bankMovements.filter(m => m.estado_conciliacion === 'conciliado_manual');
@@ -71,10 +73,14 @@ export const ReconciliationView: React.FC = () => {
   // Filtered list
   const getFilteredMovements = () => {
     let list: BankMovement[] = [];
-    if (activeSubTab === 'pending') {
-      list = pendingItems;
-    } else if (activeSubTab === 'auto') {
-      list = autoItems;
+    if (activeSubTab === 'sin_identificar') {
+      list = unidentifiedItems;
+    } else if (activeSubTab === 'sugeridos') {
+      list = suggestedItems;
+    } else if (activeSubTab === 'auto100') {
+      list = auto100Items;
+    } else if (activeSubTab === 'auto85') {
+      list = auto85Items;
     } else if (activeSubTab === 'reconciled') {
       list = reconciledItems;
     } else {
@@ -256,26 +262,50 @@ export const ReconciliationView: React.FC = () => {
         {/* Sub tabs */}
         <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200/80 overflow-x-auto scrollbar-none">
           <button
-            onClick={() => setActiveSubTab('pending')}
+            onClick={() => setActiveSubTab('sin_identificar')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center space-x-1.5 ${
-              activeSubTab === 'pending' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              activeSubTab === 'sin_identificar' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <span>Por Revisar</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold">
-              {pendingItems.length}
+            <span>Sin Identificar</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 text-slate-700 font-bold">
+              {unidentifiedItems.length}
             </span>
           </button>
 
           <button
-            onClick={() => setActiveSubTab('auto')}
+            onClick={() => setActiveSubTab('sugeridos')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center space-x-1.5 ${
-              activeSubTab === 'auto' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              activeSubTab === 'sugeridos' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <span>100% Automáticos</span>
+            <span>Sugeridos</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">
+              {suggestedItems.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('auto100')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center space-x-1.5 ${
+              activeSubTab === 'auto100' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>100% Auto</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold">
-              {autoItems.length}
+              {auto100Items.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('auto85')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex items-center space-x-1.5 ${
+              activeSubTab === 'auto85' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>~85% Auto</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold">
+              {auto85Items.length}
             </span>
           </button>
 
@@ -323,11 +353,11 @@ export const ReconciliationView: React.FC = () => {
             </div>
             <h3 className="text-base font-bold text-slate-900">¡Bandeja al día!</h3>
             <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-              {activeSubTab === 'pending'
-                ? 'No quedan movimientos bancarios pendientes de revisión. Todos los importes han sido aplicados correctamente.'
+              {activeSubTab === 'sin_identificar'
+                ? 'No quedan movimientos sin identificar. Todos los importes tienen una sugerencia o fueron conciliados.'
                 : 'No se encontraron movimientos con los filtros seleccionados.'}
             </p>
-            {activeSubTab === 'pending' && (
+            {activeSubTab === 'sin_identificar' && (
               <button
                 onClick={() => setActiveTab('accounting')}
                 className="mt-4 px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold text-xs rounded-xl transition-colors inline-flex items-center space-x-1.5"
