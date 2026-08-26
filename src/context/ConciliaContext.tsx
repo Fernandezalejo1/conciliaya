@@ -1006,23 +1006,34 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const updatedClients = [...clients];
     for (const inv of newInvoices) {
       const idx = updatedClients.findIndex(c => c.id === inv.cliente_id || c.name.toLowerCase() === inv.cliente_nombre.toLowerCase());
+      const altNames = (inv.cliente_nombre_alt || []).map(n => n.toUpperCase());
       if (idx === -1) {
         updatedClients.push({
           id: inv.cliente_id,
           name: inv.cliente_nombre,
           rut_ci: inv.cliente_rut || '',
-          alias_conocidos: [inv.cliente_nombre.toUpperCase()],
+          alias_conocidos: [inv.cliente_nombre.toUpperCase(), ...altNames],
           totalInvoiced: inv.importe,
           totalPaid: 0,
           currentBalance: inv.saldo_pendiente,
           creditBalance: 0
         });
       } else {
+        const existing = updatedClients[idx];
         updatedClients[idx] = {
-          ...updatedClients[idx],
-          totalInvoiced: updatedClients[idx].totalInvoiced + inv.importe,
-          currentBalance: updatedClients[idx].currentBalance + inv.saldo_pendiente
+          ...existing,
+          totalInvoiced: existing.totalInvoiced + inv.importe,
+          currentBalance: existing.currentBalance + inv.saldo_pendiente,
+          alias_conocidos: [...new Set([...existing.alias_conocidos, inv.cliente_nombre.toUpperCase(), ...altNames])]
         };
+      }
+    }
+    setClients(updatedClients);
+
+    setTimeout(() => {
+      runMatchingEngine(updatedInvoices, updatedClients, learnedAliases);
+    }, 50);
+  };
       }
     }
     setClients(updatedClients);

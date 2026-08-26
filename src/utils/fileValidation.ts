@@ -294,6 +294,20 @@ export function validateInvoicesBatch(
     const rawImporte = columnMap.importe ? rawRow[columnMap.importe] : undefined;
     const rawMoneda = columnMap.moneda ? rawRow[columnMap.moneda] : undefined;
 
+    // Capture alternate client name columns for matching aliases
+    const clienteAltNames: string[] = [];
+    for (const h of Object.keys(rawRow)) {
+      const hNorm = h.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (hNorm.includes('razon social cliente') || hNorm.includes('razon social') ||
+          (hNorm.includes('cliente') && hNorm.includes('proyecto')) ||
+          (hNorm.includes('cliente') && !hNorm.includes('nombre'))) {
+        const val = String(rawRow[h] || '').trim();
+        if (val && val !== String(rawCliente || '').trim()) {
+          clienteAltNames.push(val);
+        }
+      }
+    }
+
     // Check if entire row is empty
     const isRowEmpty = Object.values(rawRow).every(v => v === undefined || v === null || String(v).trim() === '');
     if (isRowEmpty) {
@@ -466,6 +480,7 @@ export function validateInvoicesBatch(
         cliente_id: 'cli_imp_' + (clienteStr || 'cliente').toLowerCase().replace(/[^a-z0-9]/g, '_'),
         cliente_nombre: clienteStr || 'Cliente Sin Nombre',
         cliente_rut: rawRut ? String(rawRut).trim() : undefined,
+        cliente_nombre_alt: clienteAltNames.length > 0 ? clienteAltNames : undefined,
         numero: numStr,
         fecha: parsedFecha.isoDate || new Date().toISOString().split('T')[0],
         vencimiento: vencimientoIso,

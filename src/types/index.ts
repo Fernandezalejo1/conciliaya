@@ -52,13 +52,14 @@ export interface Invoice {
   cliente_id: string;
   cliente_nombre: string;
   cliente_rut?: string;
+  cliente_nombre_alt?: string[]; // Razón Social Cliente, Cliente / Proyecto as aliases
   numero: string;
   fecha: string;
   vencimiento: string;
   importe: number;
   saldo_pendiente: number;
   moneda: CurrencyCode;
-  tipo_cambio?: number; // exchange rate at issuance
+  tipo_cambio?: number;
   estado: InvoiceStatus;
   observaciones?: string;
 }
