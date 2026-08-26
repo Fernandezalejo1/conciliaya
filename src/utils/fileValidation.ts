@@ -513,23 +513,15 @@ export function validateInvoicesBatch(
         montoConIva = Math.round((validAmount + ivaMonto) * 100) / 100;
       }
 
-      // Compute saldo_pendiente from monto_pagado
-      // $1 tolerance for overpayment rounding noise: if pagado exceeds conIva by < $1,
-      // treat as rounding and keep saldo at zero (no allocation needed)
+      // saldo_pendiente = monto_con_iva on import. Monto pagado from Excel is
+      // historical data that must NOT reduce the saldo — the engine builds its
+      // own ledger via PaymentApplication records when bank movements are matched.
       const parsedPagado = parseRobustNumber(rawPagado);
       const montoPagado = parsedPagado.isValid ? (parsedPagado.value || 0) : 0;
-      const rawSaldo = montoConIva - montoPagado;
-      const saldoPendiente = rawSaldo > 0
-        ? Math.round(rawSaldo * 100) / 100
-        : 0; // overpaid (even by cents) → zero pending
+      const saldoPendiente = montoConIva;
 
-      // Determine estado based on payment
+      // All invoices start as pendiente — estado is updated by the engine as payments are applied
       let estadoFactura: 'pendiente' | 'parcial' | 'pagada' = 'pendiente';
-      if (saldoPendiente <= 0.01) {
-        estadoFactura = 'pagada';
-      } else if (montoPagado > 0) {
-        estadoFactura = 'parcial';
-      }
 
       sanitizedInvoice = {
         id: `inv_imp_${Date.now()}_${idx}`,

@@ -390,12 +390,31 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const totalDebito = lines.reduce((sum, l) => sum + l.debito, 0);
     const totalCredito = lines.reduce((sum, l) => sum + l.credito, 0);
 
-    // Validate accounting balance — log warning if unbalanced
+    // Hard validation — unbalanced asiento must never be persisted
     if (Math.abs(totalDebito - totalCredito) > 0.01) {
-      console.warn(`[ConciliaYA] Asiento ${entryNumber} DESBALANCEADO: débito=$${totalDebito.toFixed(2)} crédito=$${totalCredito.toFixed(2)} diff=$${(totalDebito - totalCredito).toFixed(2)}`, {
+      console.error(`[ConciliaYA] BLOCKED unbalanced asiento ${entryNumber}: débito=$${totalDebito.toFixed(2)} crédito=$${totalCredito.toFixed(2)} diff=$${(totalDebito - totalCredito).toFixed(2)}`, {
         mov: mov.id, client: client.name, withholding, bankFee, excessCredit,
         totalApplied, facturas: affectedInvoices.map(f => `${f.factura_numero}: $${f.monto_aplicado}`)
       });
+      const blockedEntry: AccountingEntry = {
+        id: 'ast_blocked_' + Date.now(),
+        asiento_numero: entryNumber,
+        fecha: validFecha,
+        concepto: `BLOCKED — unbalanced: ${entryNumber}`,
+        movimiento_id: mov.id,
+        recibo_id: receipt.id,
+        cliente_id: client.id,
+        cliente_nombre: client.name,
+        moneda: mov.moneda || 'UYU',
+        lineas: [],
+        total_debito: 0,
+        total_credito: 0,
+        creado_por: 'ConciliaYA Engine'
+      };
+      return {
+        receipt: { ...receipt, monto_total_cobrado: 0, facturas_canceladas: [] },
+        entry: blockedEntry
+      };
     }
 
     const entry: AccountingEntry = {
@@ -571,8 +590,10 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       bankFee,
       excess
     );
-    setOfficialReceipts(prev => [receipt, ...prev]);
-    setAccountingEntries(prev => [entry, ...prev]);
+    if (!entry.concepto.startsWith('BLOCKED')) {
+      setOfficialReceipts(prev => [receipt, ...prev]);
+      setAccountingEntries(prev => [entry, ...prev]);
+    }
 
     // Update Client Balances
     const totalApplied = sugerencia.facturas.reduce((sum, f) => sum + f.monto_a_aplicar, 0) + withholding;
@@ -746,8 +767,10 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       bankFee,
       excessToCredit
     );
-    setOfficialReceipts(prev => [receipt, ...prev]);
-    setAccountingEntries(prev => [entry, ...prev]);
+    if (!entry.concepto.startsWith('BLOCKED')) {
+      setOfficialReceipts(prev => [receipt, ...prev]);
+      setAccountingEntries(prev => [entry, ...prev]);
+    }
 
     // Update Client Balances
     const totalApplied = allocations.reduce((sum, f) => sum + f.monto, 0) + withholding;
@@ -1107,16 +1130,13 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const compositeKey = `${inv.numero}__${inv.cliente_id}`;
       const existing = merged.get(compositeKey);
       if (existing) {
-        const nuevoSaldo = existing.saldo_pendiente + inv.saldo_pendiente;
         const newMontoConIva = (existing.monto_con_iva || existing.importe) + (inv.monto_con_iva || inv.importe);
-        const newMontoPagado = (existing.monto_pagado || 0) + (inv.monto_pagado || 0);
         merged.set(compositeKey, {
           ...existing,
           importe: existing.importe + inv.importe,
           monto_con_iva: newMontoConIva,
-          monto_pagado: newMontoPagado,
-          saldo_pendiente: nuevoSaldo,
-          estado: nuevoSaldo <= 0.01 ? 'pagada' : nuevoSaldo < newMontoConIva - 0.01 ? 'parcial' : 'pendiente'
+          saldo_pendiente: newMontoConIva,
+          estado: 'pendiente'
         });
       } else {
         merged.set(compositeKey, { ...inv });
@@ -1130,16 +1150,16 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const compositeKey = `${inv.numero}__${inv.cliente_id}`;
       const existing = existingByComposite.get(compositeKey);
       if (existing) {
-        const newMontoPagado = (existing.monto_pagado || 0) + (inv.monto_pagado || 0);
         const newMontoConIva = (existing.monto_con_iva || existing.importe) + (inv.monto_con_iva || inv.importe);
-        const nuevoSaldo = newMontoConIva - newMontoPagado;
+        // Keep the existing saldo_pendiente (which reflects payments already applied by the engine)
+        // Only increase it if the new import adds more monto_con_iva
+        const addedConIva = inv.monto_con_iva || inv.importe;
         existingByComposite.set(compositeKey, {
           ...existing,
           importe: existing.importe + inv.importe,
           monto_con_iva: newMontoConIva,
-          monto_pagado: newMontoPagado,
-          saldo_pendiente: Math.max(0, nuevoSaldo),
-          estado: nuevoSaldo <= 0.01 ? 'pagada' : nuevoSaldo < newMontoConIva - 0.01 ? 'parcial' : 'pendiente'
+          saldo_pendiente: existing.saldo_pendiente + addedConIva,
+          estado: existing.saldo_pendiente + addedConIva <= 0.01 ? 'pagada' : 'parcial'
         });
       } else {
         existingByComposite.set(compositeKey, { ...inv });
