@@ -347,6 +347,24 @@ export function matchBankMovement(
   const amount = movement.monto;
   const movCurrency = movement.moneda || 'UYU';
 
+  // PRE-PASS: Check if this movement exactly matches an already-paid invoice.
+  // If so, mark as "ya_conciliado" — don't create new payments.
+  for (const inv of pendingInvoices) {
+    const invTotal = (inv.monto_con_iva || inv.importe);
+    if (Math.abs(amount - invTotal) < 0.01 && (inv.estado === 'pagada' || inv.saldo_pendiente <= 0.01)) {
+      // Find the client for this invoice
+      const client = clients.find(c => c.id === inv.cliente_id) || null;
+      return {
+        cliente_id: inv.cliente_id,
+        cliente_nombre: client?.name || inv.cliente_nombre,
+        confianza: 100,
+        motivo: `Pago exacto a Factura ${inv.numero} (ya conciliada en origen)`,
+        tipo: 'ya_conciliado',
+        facturas: [],
+      };
+    }
+  }
+
   const openInvoices = pendingInvoices.filter(i => i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada');
 
   // =========================================================================
