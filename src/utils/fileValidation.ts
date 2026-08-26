@@ -4,7 +4,7 @@ export interface RowValidationIssue {
   rowIndex: number; // 0-indexed in array, displayed as 1-based or 2-based (with header)
   field: string;
   fieldLabel: string;
-  severity: 'error' | 'warning';
+  severity: 'error' | 'warning' | 'info';
   message: string;
   rawValue: any;
 }
@@ -363,8 +363,8 @@ export function validateInvoicesBatch(
           rowIndex: idx,
           field: 'numero',
           fieldLabel: 'N° Factura',
-          severity: 'warning',
-          message: `Factura duplicada dentro del mismo archivo (${numStr}).`,
+          severity: 'info',
+          message: `Línea adicional de factura ${numStr} (se sumará al total).`,
           rawValue: rawNumero
         });
       } else {
