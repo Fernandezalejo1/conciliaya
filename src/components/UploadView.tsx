@@ -65,6 +65,7 @@ export const UploadView: React.FC = () => {
     importe: string;
     moneda: string;
     iva_monto: string;
+    monto_pagado: string;
   }>({
     numero: '',
     cliente: '',
@@ -73,7 +74,8 @@ export const UploadView: React.FC = () => {
     vencimiento: '',
     importe: '',
     moneda: '',
-    iva_monto: ''
+    iva_monto: '',
+    monto_pagado: ''
   });
 
   const [bankColMap, setBankColMap] = useState<{
@@ -134,7 +136,8 @@ export const UploadView: React.FC = () => {
           'monto (sin iva)', 'precio', 'importe total'
         ]) || '',
         moneda: findBest(['moneda', 'curr', 'currency', 'mon', 'divisa']),
-        iva_monto: findBest(['iva ventas', 'iva', 'impuesto', 'tax', 'imp iv a', 'imp. iva'])
+        iva_monto: findBest(['iva ventas', 'iva', 'impuesto', 'tax', 'imp iv a', 'imp. iva']),
+        monto_pagado: findBest(['monto pagado', 'pagado', 'paid', 'amount paid', 'abonado', 'pagado total'])
       });
     } else {
       setBankColMap({
@@ -810,7 +813,7 @@ export const UploadView: React.FC = () => {
             </div>
 
             {activeUploadType === 'invoices' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-8 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-2.5">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                     N° Factura <span className="text-red-500">*</span>
@@ -941,6 +944,20 @@ export const UploadView: React.FC = () => {
                     className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2 font-medium text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Auto (22%) --</option>
+                    {detectedHeaders.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Monto Pagado</label>
+                  <select
+                    value={invoiceColMap.monto_pagado}
+                    onChange={(e) => setInvoiceColMap({ ...invoiceColMap, monto_pagado: e.target.value })}
+                    className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2 font-medium text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Ninguna --</option>
                     {detectedHeaders.map((h) => (
                       <option key={h} value={h}>{h}</option>
                     ))}

@@ -251,6 +251,7 @@ export function validateInvoicesBatch(
     importe: string;
     moneda?: string;
     iva_monto?: string;
+    monto_pagado?: string;
   },
   existingInvoices: Invoice[] = []
 ): ValidationSummary<Invoice> {
@@ -295,6 +296,7 @@ export function validateInvoicesBatch(
     const rawImporte = columnMap.importe ? rawRow[columnMap.importe] : undefined;
     const rawMoneda = columnMap.moneda ? rawRow[columnMap.moneda] : undefined;
     const rawIva = columnMap.iva_monto ? rawRow[columnMap.iva_monto] : undefined;
+    const rawPagado = columnMap.monto_pagado ? rawRow[columnMap.monto_pagado] : undefined;
 
     // Capture alternate client name columns for matching aliases
     const clienteAltNames: string[] = [];
@@ -505,6 +507,19 @@ export function validateInvoicesBatch(
         montoConIva = Math.round((validAmount + ivaMonto) * 100) / 100;
       }
 
+      // Compute saldo_pendiente from monto_pagado
+      const parsedPagado = parseRobustNumber(rawPagado);
+      const montoPagado = parsedPagado.isValid ? (parsedPagado.value || 0) : 0;
+      const saldoPendiente = Math.max(0, Math.round((montoConIva - montoPagado) * 100) / 100);
+
+      // Determine estado based on payment
+      let estadoFactura: 'pendiente' | 'parcial' | 'pagada' = 'pendiente';
+      if (saldoPendiente <= 0.01) {
+        estadoFactura = 'pagada';
+      } else if (montoPagado > 0) {
+        estadoFactura = 'parcial';
+      }
+
       sanitizedInvoice = {
         id: `inv_imp_${Date.now()}_${idx}`,
         cliente_id: 'cli_imp_' + (clienteStr || 'cliente').toLowerCase().replace(/[^a-z0-9]/g, '_'),
@@ -515,12 +530,13 @@ export function validateInvoicesBatch(
         fecha: parsedFecha.isoDate || new Date().toISOString().split('T')[0],
         vencimiento: vencimientoIso,
         importe: montoConIva,
-        saldo_pendiente: montoConIva,
+        saldo_pendiente: saldoPendiente,
         monto_sin_iva: montoSinIva,
         monto_con_iva: montoConIva,
         iva_monto: ivaMonto,
+        monto_pagado: montoPagado,
         moneda: currency,
-        estado: 'pendiente'
+        estado: estadoFactura
       };
       sanitizedRows.push(sanitizedInvoice);
     }

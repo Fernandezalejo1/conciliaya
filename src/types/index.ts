@@ -61,6 +61,7 @@ export interface Invoice {
   monto_sin_iva?: number;
   monto_con_iva?: number;
   iva_monto?: number;
+  monto_pagado?: number;
   moneda: CurrencyCode;
   tipo_cambio?: number;
   estado: InvoiceStatus;
