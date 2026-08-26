@@ -40,7 +40,7 @@ import {
 } from '../utils/fileValidation';
 
 export const UploadView: React.FC = () => {
-  const { invoices, bankMovements, importInvoices, importBankMovements, setActiveTab, company } = useConcilia();
+  const { invoices, bankMovements, importInvoices, importBankMovements, importNameMapping, setActiveTab, company } = useConcilia();
 
   const [activeUploadType, setActiveUploadType] = useState<'invoices' | 'movements'>('invoices');
   const [ingestMode, setIngestMode] = useState<'file' | 'clipboard'>('file');
@@ -238,6 +238,27 @@ export const UploadView: React.FC = () => {
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
           const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+          // Check for name mapping sheet (Mapeo de Nombres)
+          if (workbook.SheetNames.length > 1) {
+            const mappingSheetName = workbook.SheetNames.find(s =>
+              s.toLowerCase().includes('mapeo') || s.toLowerCase().includes('mapping') || s.toLowerCase().includes('nombre')
+            );
+            if (mappingSheetName) {
+              const mappingSheet = workbook.Sheets[mappingSheetName];
+              const mappingJson = XLSX.utils.sheet_to_json(mappingSheet, { defval: '' });
+              const realKey = Object.keys(mappingJson[0] || {}).find(k => k.toLowerCase().includes('real') || k.toLowerCase().includes('original'));
+              const fictitiousKey = Object.keys(mappingJson[0] || {}).find(k => k.toLowerCase().includes('ficticio') || k.toLowerCase().includes('usado') || k.toLowerCase().includes('app'));
+              if (realKey && fictitiousKey) {
+                const mappings = mappingJson
+                  .map((row: any) => ({ real: String(row[realKey] || '').trim(), fictitious: String(row[fictitiousKey] || '').trim() }))
+                  .filter(m => m.real && m.fictitious && m.real !== m.fictitious);
+                if (mappings.length > 0) {
+                  importNameMapping(mappings);
+                }
+              }
+            }
+          }
 
           if (json && json.length > 0) {
             const headers = Object.keys(json[0] as object);

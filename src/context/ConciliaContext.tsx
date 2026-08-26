@@ -66,6 +66,7 @@ interface ConciliaContextType {
   // File Ingest
   importInvoices: (newInvoices: Invoice[]) => void;
   importBankMovements: (newMovements: BankMovement[]) => void;
+  importNameMapping: (mappings: Array<{ real: string; fictitious: string }>) => void;
   
   // Client Management
   addClient: (client: Omit<Client, 'id' | 'totalInvoiced' | 'totalPaid' | 'currentBalance' | 'creditBalance'>) => void;
@@ -285,10 +286,25 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const receiptNumber = `REC-${new Date().getFullYear()}-${String(officialReceipts.length + 101).padStart(5, '0')}`;
     const entryNumber = `AST-${new Date().getFullYear()}-${String(accountingEntries.length + 1).padStart(5, '0')}`;
 
+    // Date validation: no receipt/asiento can be dated before the latest affected invoice's emission date
+    const movFecha = mov.fecha || new Date().toISOString().split('T')[0];
+    let validFecha = movFecha;
+    if (affectedInvoices.length > 0) {
+      const latestEmissionDate = affectedInvoices.reduce((latest, f) => {
+        const inv = invoices.find(i => i.id === f.factura_id);
+        if (inv && inv.fecha && inv.fecha > latest) return inv.fecha;
+        return latest;
+      }, movFecha);
+      if (latestEmissionDate > movFecha) {
+        console.warn(`[ConciliaYA] Asiento ${entryNumber}: fecha movimiento ${movFecha} anterior a última factura ${latestEmissionDate} — usando ${latestEmissionDate}`);
+        validFecha = latestEmissionDate;
+      }
+    }
+
     const receipt: OfficialReceipt = {
       id: 'rec_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
       numero_recibo: receiptNumber,
-      fecha: mov.fecha || new Date().toISOString().split('T')[0],
+      fecha: validFecha,
       cliente_id: client.id,
       cliente_nombre: client.name,
       cliente_rut: client.rut_ci,
@@ -385,7 +401,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const entry: AccountingEntry = {
       id: 'ast_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
       asiento_numero: entryNumber,
-      fecha: mov.fecha || new Date().toISOString().split('T')[0],
+      fecha: validFecha,
       concepto: `Cobranza a ${client.name} s/ ${receiptNumber} (${affectedInvoices.map(f => f.factura_numero).join(', ') || 'Abono en cta'})`,
       movimiento_id: mov.id,
       recibo_id: receipt.id,
@@ -442,21 +458,9 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return m;
       }));
 
-      // Find the matched invoice for the receipt detail
-      const matchedInv = invoices.find(i => i.numero === (sugerencia.facturas?.[0]?.factura_numero || ''));
-      const receiptInvoices = matchedInv ? [{
-        factura_id: matchedInv.id,
-        factura_numero: matchedInv.numero,
-        monto_aplicado: mov.monto,
-        saldo_restante: 0
-      }] : [];
-
-      const { receipt, entry } = createReceiptAndJournal(
-        mov, client, receiptInvoices, 0, 0, 0
-      );
-      setOfficialReceipts(prev => [...prev, receipt]);
-      setAccountingEntries(prev => [...prev, entry]);
-
+      // Do NOT generate receipt or accounting entry for ya_conciliado.
+      // The payment is already recorded in Cashflow — generating a cobranza
+      // entry would duplicate it and backdate it to before the invoice existed.
       const aliasToLearn = customAliasText || mov.descripcion_cruda;
       recordAlias(aliasToLearn, sugerencia.cliente_id, client.name);
       const audit: AuditLog = {
@@ -472,9 +476,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           cliente_id: sugerencia.cliente_id,
           cliente_nombre: client.name,
           monto: mov.monto,
-          recibo_id: receipt.id,
-          asiento_id: entry.id,
-          facturas_afectadas: receiptInvoices.map(f => ({ factura_id: f.factura_id, numero: f.factura_numero, monto_aplicado: f.monto_aplicado })),
+          facturas_afectadas: [],
         },
         revertible: false,
         reverted: false
@@ -938,7 +940,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (facturas_afectadas && facturas_afectadas.length > 0) {
       setInvoices(prevInvoices => {
         return prevInvoices.map(inv => {
-          const affected = facturas_afectadas.find(f => f.factura_id === inv.id || f.numero === inv.numero);
+          const affected = facturas_afectadas.find(f => f.factura_id === inv.id);
           if (affected) {
             const restoredSaldo = Math.min(inv.importe, inv.saldo_pendiente + affected.monto_aplicado);
             return {
@@ -1099,15 +1101,16 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const importInvoices = (newInvoices: Invoice[]) => {
-    // Merge duplicate invoices: same number = same invoice, sum amounts
+    // Merge duplicate invoices: composite key (numero + cliente_id) prevents cross-client collision
     const merged = new Map<string, Invoice>();
     for (const inv of newInvoices) {
-      const existing = merged.get(inv.numero);
+      const compositeKey = `${inv.numero}__${inv.cliente_id}`;
+      const existing = merged.get(compositeKey);
       if (existing) {
         const nuevoSaldo = existing.saldo_pendiente + inv.saldo_pendiente;
         const newMontoConIva = (existing.monto_con_iva || existing.importe) + (inv.monto_con_iva || inv.importe);
         const newMontoPagado = (existing.monto_pagado || 0) + (inv.monto_pagado || 0);
-        merged.set(inv.numero, {
+        merged.set(compositeKey, {
           ...existing,
           importe: existing.importe + inv.importe,
           monto_con_iva: newMontoConIva,
@@ -1116,20 +1119,21 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           estado: nuevoSaldo <= 0.01 ? 'pagada' : nuevoSaldo < newMontoConIva - 0.01 ? 'parcial' : 'pendiente'
         });
       } else {
-        merged.set(inv.numero, { ...inv });
+        merged.set(compositeKey, { ...inv });
       }
     }
     const deduplicated: Invoice[] = Array.from(merged.values());
 
-    // Merge with existing invoices: same numero = update, new numero = append
-    const existingByNumero = new Map<string, Invoice>(invoices.map((inv: Invoice) => [inv.numero, inv]));
+    // Merge with existing invoices: composite key (numero + cliente_id) for cross-client safety
+    const existingByComposite = new Map<string, Invoice>(invoices.map((inv: Invoice) => [`${inv.numero}__${inv.cliente_id}`, inv]));
     for (const inv of deduplicated) {
-      const existing = existingByNumero.get(inv.numero);
+      const compositeKey = `${inv.numero}__${inv.cliente_id}`;
+      const existing = existingByComposite.get(compositeKey);
       if (existing) {
         const newMontoPagado = (existing.monto_pagado || 0) + (inv.monto_pagado || 0);
         const newMontoConIva = (existing.monto_con_iva || existing.importe) + (inv.monto_con_iva || inv.importe);
         const nuevoSaldo = newMontoConIva - newMontoPagado;
-        existingByNumero.set(inv.numero, {
+        existingByComposite.set(compositeKey, {
           ...existing,
           importe: existing.importe + inv.importe,
           monto_con_iva: newMontoConIva,
@@ -1138,10 +1142,10 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           estado: nuevoSaldo <= 0.01 ? 'pagada' : nuevoSaldo < newMontoConIva - 0.01 ? 'parcial' : 'pendiente'
         });
       } else {
-        existingByNumero.set(inv.numero, { ...inv });
+        existingByComposite.set(compositeKey, { ...inv });
       }
     }
-    const updatedInvoices = Array.from(existingByNumero.values());
+    const updatedInvoices = Array.from(existingByComposite.values());
     setInvoices(updatedInvoices);
 
     const updatedClients = [...clients];
@@ -1182,6 +1186,44 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setTimeout(() => {
       runMatchingEngine(invoices, clients, learnedAliases);
     }, 50);
+  };
+
+  const importNameMapping = (mappings: Array<{ real: string; fictitious: string }>) => {
+    if (!mappings.length) return;
+    let aliasCount = 0;
+
+    setLearnedAliases(prev => {
+      const updated = [...prev];
+      for (const { real, fictitious } of mappings) {
+        const realClean = real.trim().toUpperCase();
+        const fictitiousClean = fictitious.trim().toUpperCase();
+        if (!realClean || !fictitiousClean || realClean === fictitiousClean) continue;
+
+        const existing = updated.find(a => a.texto_referencia.toUpperCase() === realClean && a.cliente_nombre.toUpperCase() === fictitiousClean);
+        if (existing) continue;
+
+        const client = clients.find(c => c.name.toUpperCase() === fictitiousClean || c.alias_conocidos.some(a => a.toUpperCase() === fictitiousClean));
+        if (!client) continue;
+
+        updated.push({
+          id: 'alias_map_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+          texto_referencia: real,
+          cliente_id: client.id,
+          cliente_nombre: client.name,
+          veces_confirmado: 10,
+          ultima_vez: new Date().toISOString().split('T')[0],
+          origen: 'import'
+        });
+        aliasCount++;
+      }
+      return updated;
+    });
+
+    if (aliasCount > 0) {
+      setTimeout(() => {
+        runMatchingEngine(invoices, clients, learnedAliases);
+      }, 100);
+    }
   };
 
   // Log email reminder sent
@@ -1339,6 +1381,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteLearnedAlias,
         importInvoices,
         importBankMovements,
+        importNameMapping,
         addClient,
         updateClient,
         deleteClient,

@@ -298,11 +298,15 @@ export function extractInvoiceTokens(text: string): string[] {
  * Subset-sum helper to find combinations of open invoices that sum up exactly to the movement amount
  */
 export function findInvoiceCombination(invoices: Invoice[], targetAmount: number): Invoice[] | null {
-  const sorted = [...invoices].filter(i => i.saldo_pendiente > 0).sort((a, b) => b.saldo_pendiente - a.saldo_pendiente);
+  const sorted = [...invoices].filter(i => i.saldo_pendiente > 0).sort((a, b) => {
+    const bTotal = b.monto_con_iva || b.importe;
+    const aTotal = a.monto_con_iva || a.importe;
+    return bTotal - aTotal;
+  });
   if (sorted.length === 0) return null;
 
-  // Single invoice exact
-  const single = sorted.find(i => Math.abs(i.saldo_pendiente - targetAmount) < 0.01);
+  // Single invoice exact — compare against monto_con_iva (consumidor final)
+  const single = sorted.find(i => Math.abs((i.monto_con_iva || i.importe) - targetAmount) < 0.01);
   if (single) return [single];
 
   // Try 2 to 5 invoices combinations (DFS for efficiency)
@@ -321,7 +325,7 @@ function combineDFS(sorted: Invoice[], n: number, size: number, start: number, c
   }
   const remaining = size - current.length;
   for (let i = start; i <= n - remaining; i++) {
-    const newSum = currentSum + sorted[i].saldo_pendiente;
+    const newSum = currentSum + (sorted[i].monto_con_iva || sorted[i].importe);
     // Prune: if adding the smallest remaining still exceeds target + tolerance, skip
     if (newSum > target + 0.01 && current.length < size - 1) continue;
     const result = combineDFS(sorted, n, size, i + 1, newSum, target, [...current, sorted[i]]);
@@ -412,14 +416,15 @@ export function matchBankMovement(
       if (hasToken) {
         const invCurrency = inv.moneda || 'UYU';
         
-        // Multi-currency calculation
-        let effectiveInvSaldo = inv.saldo_pendiente;
+        // Multi-currency calculation — compare against monto_con_iva (consumidor final)
+        const invTotal = inv.monto_con_iva || inv.importe;
+        let effectiveInvSaldo = invTotal;
         let isBimonetary = false;
         if (movCurrency === 'UYU' && invCurrency === 'USD') {
-          effectiveInvSaldo = inv.saldo_pendiente * usdExchangeRate;
+          effectiveInvSaldo = invTotal * usdExchangeRate;
           isBimonetary = true;
         } else if (movCurrency === 'USD' && invCurrency === 'UYU') {
-          effectiveInvSaldo = inv.saldo_pendiente / usdExchangeRate;
+          effectiveInvSaldo = invTotal / usdExchangeRate;
           isBimonetary = true;
         }
 
@@ -511,10 +516,11 @@ export function matchBankMovement(
   if (candidateClient) {
     const clientInvoices = openInvoices.filter(i => i.cliente_id === candidateClient!.id);
     
-    // Check exact invoice
+    // Check exact invoice — compare against monto_con_iva (consumidor final)
     for (const inv of clientInvoices) {
-      let invAmount = inv.saldo_pendiente;
-      if (movCurrency === 'UYU' && inv.moneda === 'USD') invAmount = inv.saldo_pendiente * usdExchangeRate;
+      const invTotal = inv.monto_con_iva || inv.importe;
+      let invAmount = invTotal;
+      if (movCurrency === 'UYU' && inv.moneda === 'USD') invAmount = invTotal * usdExchangeRate;
       
       if (Math.abs(invAmount - amount) < 1) {
         return {
@@ -665,15 +671,16 @@ export function matchBankMovement(
   for (const best of topClients) {
     const clientInvoices = openInvoices.filter(i => i.cliente_id === best.client.id);
 
-    // Exact invoice match for this fuzzy client
+    // Exact invoice match for this fuzzy client — compare against monto_con_iva
     for (const exactInvoice of clientInvoices) {
-      let invAmount = exactInvoice.saldo_pendiente;
+      const invTotal = exactInvoice.monto_con_iva || exactInvoice.importe;
+      let invAmount = invTotal;
       let isBimonetary = false;
       if (movCurrency === 'UYU' && exactInvoice.moneda === 'USD') {
-        invAmount = exactInvoice.saldo_pendiente * usdExchangeRate;
+        invAmount = invTotal * usdExchangeRate;
         isBimonetary = true;
       } else if (movCurrency === 'USD' && exactInvoice.moneda === 'UYU') {
-        invAmount = exactInvoice.saldo_pendiente / usdExchangeRate;
+        invAmount = invTotal / usdExchangeRate;
         isBimonetary = true;
       }
 
@@ -795,11 +802,12 @@ export function matchBankMovement(
   // PASO 4 — Búsqueda por Coincidencia Unívoca de Importe en Cartera
   // =========================================================================
   const invoicesWithExactAmount = openInvoices.filter(i => {
-    let effectiveSaldo = i.saldo_pendiente;
+    const invTotal = i.monto_con_iva || i.importe;
+    let effectiveSaldo = invTotal;
     if (movCurrency === 'UYU' && i.moneda === 'USD') {
-      effectiveSaldo = i.saldo_pendiente * usdExchangeRate;
+      effectiveSaldo = invTotal * usdExchangeRate;
     } else if (movCurrency === 'USD' && i.moneda === 'UYU') {
-      effectiveSaldo = i.saldo_pendiente / usdExchangeRate;
+      effectiveSaldo = invTotal / usdExchangeRate;
     } else if (movCurrency !== (i.moneda || 'UYU')) {
       return false;
     }

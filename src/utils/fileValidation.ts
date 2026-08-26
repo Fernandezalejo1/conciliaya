@@ -335,11 +335,12 @@ export function validateInvoicesBatch(
 
     // Skip TOTAL / summary rows — scan all fields for summary keywords
     const allValuesStr = Object.values(rawRow).map(v => String(v || '')).join(' ').toLowerCase();
-    const summaryKeywords = ['totales', 'total neto', 'total general', 'subtotal', 'sumas', 'grand total'];
+    const summaryKeywords = ['totales', 'total neto', 'total general', 'subtotal', 'sumas', 'grand total', 'totaux'];
     if (summaryKeywords.some(kw => allValuesStr.includes(kw))) {
       const keyFieldEmpty = !String(rawNumero || '').trim();
       const dateFieldEmpty = !String(rawFecha || '').trim();
-      if (keyFieldEmpty || dateFieldEmpty) {
+      const clienteFieldEmpty = !String(rawCliente || '').trim();
+      if (keyFieldEmpty || dateFieldEmpty || clienteFieldEmpty) {
         return;
       }
     }
@@ -651,10 +652,11 @@ export function validateBankMovementsBatch(
 
     // Skip TOTAL / summary rows — scan all fields for summary keywords
     const allValuesStr = Object.values(rawRow).map(v => String(v || '')).join(' ').toLowerCase();
-    const summaryKws = ['totales', 'total neto', 'total general', 'subtotal', 'sumas', 'grand total'];
+    const summaryKws = ['totales', 'total neto', 'total general', 'subtotal', 'sumas', 'grand total', 'totaux'];
     if (summaryKws.some(kw => allValuesStr.includes(kw))) {
       const dateEmpty = !String(rawFecha || '').trim();
-      if (dateEmpty) {
+      const descEmpty = !String(rawDesc || '').trim();
+      if (dateEmpty || descEmpty) {
         return;
       }
     }
