@@ -367,17 +367,17 @@ export const UploadView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Info */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700 shadow-xs">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center space-x-2.5">
-              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Carga de Archivos & Ingesta</h2>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Carga de Archivos & Ingesta</h2>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                 <ShieldCheck className="h-3.5 w-3.5 mr-1" />
                 Capa de Validación Activa
               </span>
             </div>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               Sube tus facturas pendientes de cobro y extractos bancarios. La capa de validación audita encabezados, formatos numéricos y coherencia de fechas antes de alimentar el motor de matching.
             </p>
           </div>
@@ -385,7 +385,7 @@ export const UploadView: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => handleLoadSampleData('invoices', false)}
-              className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center space-x-1"
+              className="px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center space-x-1"
               title="Carga archivo de ejemplo limpio"
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -401,10 +401,10 @@ export const UploadView: React.FC = () => {
             </button>
             <button
               onClick={() => handleLoadSampleData('invoices', true)}
-              className="px-3 py-1.5 text-xs font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 rounded-lg transition-colors flex items-center space-x-1 border border-amber-300/80"
+              className="px-3 py-1.5 text-xs font-bold text-amber-800 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 rounded-lg transition-colors flex items-center space-x-1 border border-amber-300/80"
               title="Probar detección de errores numéricos, fechas inconsistentes y duplicados"
             >
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-700" />
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-700 dark:text-amber-400" />
               <span>Probar Errores e Inconsistencias</span>
             </button>
           </div>
@@ -412,14 +412,14 @@ export const UploadView: React.FC = () => {
       </div>
 
       {/* Mode Switcher Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setIngestMode('file')}
             className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all flex items-center space-x-2 ${
               ingestMode === 'file'
                 ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50'
             }`}
           >
             <UploadCloud className="h-4 w-4" />
@@ -431,7 +431,7 @@ export const UploadView: React.FC = () => {
             className={`px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all flex items-center space-x-2 ${
               ingestMode === 'clipboard'
                 ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50'
             }`}
           >
             <ClipboardPaste className="h-4 w-4" />
@@ -439,7 +439,7 @@ export const UploadView: React.FC = () => {
           </button>
         </div>
 
-        <span className="hidden sm:inline-block text-xs text-slate-500">
+        <span className="hidden sm:inline-block text-xs text-slate-500 dark:text-slate-400">
           {ingestMode === 'clipboard'
             ? 'Copia celdas en tu Excel y pégalas aquí sin guardar archivo'
             : 'Soporta archivos Excel nativos o CSV de cualquier banco y ERP'}
@@ -447,26 +447,26 @@ export const UploadView: React.FC = () => {
       </div>
 
       {ingestMode === 'clipboard' ? (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
-                <ClipboardPaste className="h-5 w-5 text-blue-600" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                <ClipboardPaste className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 <span>Pegar Celdas Copiadas desde Excel</span>
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Selecciona las celdas en tu hoja de cálculo (incluyendo la fila de títulos), presiona <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-[11px] font-mono text-slate-700">Ctrl+C</kbd> y pégalas abajo con <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-300 rounded text-[11px] font-mono text-slate-700">Ctrl+V</kbd>.
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Selecciona las celdas en tu hoja de cálculo (incluyendo la fila de títulos), presiona <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-[11px] font-mono text-slate-700 dark:text-slate-300">Ctrl+C</kbd> y pégalas abajo con <kbd className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-[11px] font-mono text-slate-700 dark:text-slate-300">Ctrl+V</kbd>.
               </p>
             </div>
 
             {/* Invoices vs Movements Selector */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl">
+            <div className="flex items-center bg-slate-100 dark:bg-slate-700 p-1 rounded-xl">
               <button
                 onClick={() => setActiveUploadType('invoices')}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
                   activeUploadType === 'invoices'
-                    ? 'bg-white text-blue-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 1. Son Facturas
@@ -475,8 +475,8 @@ export const UploadView: React.FC = () => {
                 onClick={() => setActiveUploadType('movements')}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
                   activeUploadType === 'movements'
-                    ? 'bg-white text-indigo-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-slate-800 text-indigo-700 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 2. Es Extracto Bancario
@@ -493,14 +493,14 @@ export const UploadView: React.FC = () => {
                 ? "N° Factura\tCliente\tRUT\tFecha\tVencimiento\tImporte\nFAC-1042\tSupermercado El Sol\t219876540012\t2026-08-01\t2026-08-15\t45000\nFAC-1043\tFarmacia San Roque\t218765430018\t2026-08-05\t2026-08-20\t28500"
                 : "Fecha\tMonto\tDescripción\tReferencia\tBanco\n2026-08-12\t45000\tTRF SPI EL SOL S.A.\tTRF-889102\tBanco Itaú\n2026-08-14\t28500\tPAGO FARM ROQUE\t9920112\tBROU"
             }
-            className="w-full font-mono text-xs p-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-800 transition-all placeholder:text-slate-400"
+            className="w-full font-mono text-xs p-3.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white text-slate-800 dark:text-slate-200 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
           />
 
           <div className="flex items-center justify-between pt-2">
             <button
               type="button"
               onClick={() => setClipboardText('')}
-              className="text-xs font-medium text-slate-500 hover:text-slate-800"
+              className="text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
             >
               Limpiar texto
             </button>
@@ -524,33 +524,33 @@ export const UploadView: React.FC = () => {
               if (fileInputRef.current) fileInputRef.current.click();
             }}
             className={`
-              cursor-pointer bg-white rounded-2xl p-6 border-2 transition-all relative overflow-hidden group
+              cursor-pointer bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 transition-all relative overflow-hidden group
               ${activeUploadType === 'invoices' && parsedRows.length > 0
                 ? 'border-blue-500 bg-blue-50/20 shadow-md ring-2 ring-blue-500/20'
-                : 'border-dashed border-slate-300 hover:border-blue-400 hover:bg-slate-50/60'
+                : 'border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-400 hover:bg-slate-50/60'
               }
             `}
           >
             <div className="flex items-start justify-between">
-              <div className="h-12 w-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <div className="h-12 w-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <FileSpreadsheet className="h-6 w-6" />
               </div>
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/60">
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1 rounded-full border border-blue-200/60 dark:border-blue-800">
                 Paso 1
               </span>
             </div>
 
             <div className="mt-4">
-              <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">
                 1. Subir Facturas Pendientes
               </h3>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                 Exportado de tu ERP (Memory, Conty, Odoo, GNS, Excel). Incluye N° de factura, cliente, RUT, fecha e importe.
               </p>
             </div>
 
-            <div className="mt-5 flex items-center justify-between pt-4 border-t border-slate-100">
-              <span className="text-xs font-semibold text-blue-600 flex items-center">
+            <div className="mt-5 flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700">
+              <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 flex items-center">
                 <UploadCloud className="h-4 w-4 mr-1.5" />
                 Arrastrar o Seleccionar (.xlsx, .csv)
               </span>
@@ -559,7 +559,7 @@ export const UploadView: React.FC = () => {
                   e.stopPropagation();
                   handleDownloadSample('invoices');
                 }}
-                className="text-xs text-slate-500 hover:text-slate-800 flex items-center font-medium hover:underline"
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center font-medium hover:underline"
               >
                 <Download className="h-3.5 w-3.5 mr-1" />
                 Plantilla CSV
@@ -574,10 +574,10 @@ export const UploadView: React.FC = () => {
               if (fileInputRef.current) fileInputRef.current.click();
             }}
             className={`
-              cursor-pointer bg-white rounded-2xl p-6 border-2 transition-all relative overflow-hidden group
+              cursor-pointer bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 transition-all relative overflow-hidden group
               ${activeUploadType === 'movements' && parsedRows.length > 0
                 ? 'border-indigo-500 bg-indigo-50/20 shadow-md ring-2 ring-indigo-500/20'
-                : 'border-dashed border-slate-300 hover:border-indigo-400 hover:bg-slate-50/60'
+                : 'border-dashed border-slate-300 dark:border-slate-600 hover:border-indigo-400 hover:bg-slate-50/60'
               }
             `}
           >
@@ -591,15 +591,15 @@ export const UploadView: React.FC = () => {
             </div>
 
             <div className="mt-4">
-              <h3 className="text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">
                 2. Subir Movimientos Bancarios
               </h3>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                 Extracto de tu banco (Itaú, BROU, Santander, BBVA, Scotiabank). El sistema tolerará descripciones desordenadas y referencias crudas.
               </p>
             </div>
 
-            <div className="mt-5 flex items-center justify-between pt-4 border-t border-slate-100">
+            <div className="mt-5 flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-700">
               <span className="text-xs font-semibold text-indigo-600 flex items-center">
                 <UploadCloud className="h-4 w-4 mr-1.5" />
                 Arrastrar o Seleccionar (.xlsx, .csv)
@@ -609,7 +609,7 @@ export const UploadView: React.FC = () => {
                   e.stopPropagation();
                   handleDownloadSample('movements');
                 }}
-                className="text-xs text-slate-500 hover:text-slate-800 flex items-center font-medium hover:underline"
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 flex items-center font-medium hover:underline"
               >
                 <Download className="h-3.5 w-3.5 mr-1" />
                 Plantilla CSV
@@ -630,21 +630,21 @@ export const UploadView: React.FC = () => {
 
       {/* Alert Notifications */}
       {errorMsg && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center justify-between text-sm">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl flex items-center justify-between text-sm">
           <div className="flex items-center space-x-2">
             <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
             <span>{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-red-600">
+          <button onClick={() => setErrorMsg(null)} className="text-red-400 dark:text-red-500 hover:text-red-600">
             <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
       {successMsg && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3.5 rounded-xl flex items-center justify-between text-sm">
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-400 px-4 py-3.5 rounded-xl flex items-center justify-between text-sm">
           <div className="flex items-center space-x-2.5">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="font-medium">{successMsg}</span>
           </div>
           <button
@@ -659,19 +659,19 @@ export const UploadView: React.FC = () => {
 
       {/* Preview & Validation Layer Section */}
       {parsedRows.length > 0 && validationSummary && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6 animate-in fade-in duration-300">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6 animate-in fade-in duration-300">
           {/* Top Ingestion Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-700">
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-bold text-slate-900 text-lg">
+                <span className="font-bold text-slate-900 dark:text-white text-lg">
                   Previsualización & Control de Calidad: {activeUploadType === 'invoices' ? 'Facturas' : 'Extracto Bancario'}
                 </span>
-                <span className="text-xs font-semibold px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full">
+                <span className="text-xs font-semibold px-2.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded-full">
                   {parsedRows.length} filas leídas
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">Archivo origen: <span className="font-medium text-slate-700">{fileName}</span></p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Archivo origen: <span className="font-medium text-slate-700 dark:text-slate-300">{fileName}</span></p>
             </div>
 
             <div className="flex items-center space-x-2">
@@ -681,7 +681,7 @@ export const UploadView: React.FC = () => {
                   setFileName('');
                   setErrorMsg(null);
                 }}
-                className="px-3 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                className="px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-xl transition-colors"
               >
                 Cancelar
               </button>
@@ -707,7 +707,7 @@ export const UploadView: React.FC = () => {
               ) : (
                 <button
                   disabled
-                  className="px-4 py-2 text-xs font-bold text-slate-400 bg-slate-100 rounded-xl cursor-not-allowed flex items-center space-x-1.5"
+                  className="px-4 py-2 text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 rounded-xl cursor-not-allowed flex items-center space-x-1.5"
                 >
                   <ShieldAlert className="h-4 w-4 text-red-400" />
                   <span>Bloqueado por Errores Críticos</span>
@@ -721,17 +721,17 @@ export const UploadView: React.FC = () => {
             {/* 1. Global Status */}
             <div className={`p-4 rounded-xl border flex items-center space-x-3 ${
               validationSummary.isValid
-                ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                ? 'bg-emerald-50/70 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-900'
                 : validationSummary.errorRowsCount > 0
-                ? 'bg-red-50/70 border-red-200 text-red-900'
-                : 'bg-amber-50/70 border-amber-200 text-amber-900'
+                ? 'bg-red-50/70 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-900'
+                : 'bg-amber-50/70 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-900'
             }`}>
               <div className={`p-2.5 rounded-lg shrink-0 ${
                 validationSummary.isValid
-                  ? 'bg-emerald-200 text-emerald-800'
+                  ? 'bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-400'
                   : validationSummary.errorRowsCount > 0
-                  ? 'bg-red-200 text-red-800'
-                  : 'bg-amber-200 text-amber-800'
+                  ? 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-400'
+                  : 'bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-400'
               }`}>
                 {validationSummary.isValid ? (
                   <ShieldCheck className="h-5 w-5" />
@@ -752,41 +752,41 @@ export const UploadView: React.FC = () => {
             </div>
 
             {/* 2. Valid Rows Metric */}
-            <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl flex items-center justify-between">
+            <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700 p-4 rounded-xl flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Filas Listas</p>
-                <p className="text-xl font-bold text-emerald-600">{validationSummary.validRowsCount}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Filas Listas</p>
+                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{validationSummary.validRowsCount}</p>
               </div>
-              <span className="text-xs font-semibold text-slate-400">de {validationSummary.totalRows} filas</span>
+              <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">de {validationSummary.totalRows} filas</span>
             </div>
 
             {/* 3. Warnings Metric */}
-            <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl flex items-center justify-between">
+            <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700 p-4 rounded-xl flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Advertencias</p>
-                <p className="text-xl font-bold text-amber-600">{validationSummary.warningRowsCount}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Advertencias</p>
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400">{validationSummary.warningRowsCount}</p>
               </div>
-              <span className="text-[11px] text-slate-400">Autocorregibles</span>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">Autocorregibles</span>
             </div>
 
             {/* 4. Critical Errors Metric */}
-            <div className="bg-slate-50 border border-slate-200/80 p-4 rounded-xl flex items-center justify-between">
+            <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700 p-4 rounded-xl flex items-center justify-between">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Errores Críticos</p>
-                <p className="text-xl font-bold text-red-600">{validationSummary.errorRowsCount}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Errores Críticos</p>
+                <p className="text-xl font-bold text-red-600 dark:text-red-400">{validationSummary.errorRowsCount}</p>
               </div>
-              <span className="text-[11px] text-slate-400">No importables</span>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">No importables</span>
             </div>
           </div>
 
           {/* Header Validation Alert if missing headers */}
           {validationSummary.missingRequiredHeaders.length > 0 && (
-            <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-xl space-y-2">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-400 p-4 rounded-xl space-y-2">
               <div className="flex items-center space-x-2">
-                <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
                 <span className="font-bold text-sm">Faltan Encabezados Obligatorios en el Archivo</span>
               </div>
-              <p className="text-xs text-red-700 leading-relaxed">
+              <p className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
                 El archivo no contiene o no se han podido vincular automáticamente las siguientes columnas obligatorias:{' '}
                 <strong>{validationSummary.missingRequiredHeaders.map(h => h.label).join(', ')}</strong>.
                 Por favor selecciónalas en el panel de <em>Mapeo de Columnas</em> a continuación.
@@ -795,13 +795,13 @@ export const UploadView: React.FC = () => {
           )}
 
           {/* Smart Column Mapping Controls */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-3">
+          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700 space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
-                <Layers className="h-3.5 w-3.5 text-blue-600" />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
+                <Layers className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                 <span>Mapeo de Columnas Detectadas</span>
               </h4>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
                 Los campos con <span className="text-red-500 font-bold">*</span> son obligatorios
               </span>
             </div>
@@ -809,7 +809,7 @@ export const UploadView: React.FC = () => {
             {activeUploadType === 'invoices' ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                     N° Factura <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -817,8 +817,8 @@ export const UploadView: React.FC = () => {
                     onChange={(e) => setInvoiceColMap({ ...invoiceColMap, numero: e.target.value })}
                     className={`w-full text-xs rounded-lg p-2 font-medium border ${
                       !invoiceColMap.numero
-                        ? 'border-red-300 bg-red-50 text-red-800'
-                        : 'border-slate-300 bg-white text-slate-800'
+                        ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200'
                     } focus:ring-2 focus:ring-blue-500`}
                   >
                     <option value="">-- Seleccionar --</option>
@@ -829,7 +829,7 @@ export const UploadView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Cliente / Razón <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -837,8 +837,8 @@ export const UploadView: React.FC = () => {
                     onChange={(e) => setInvoiceColMap({ ...invoiceColMap, cliente: e.target.value })}
                     className={`w-full text-xs rounded-lg p-2 font-medium border ${
                       !invoiceColMap.cliente
-                        ? 'border-red-300 bg-red-50 text-red-800'
-                        : 'border-slate-300 bg-white text-slate-800'
+                        ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200'
                     } focus:ring-2 focus:ring-blue-500`}
                   >
                     <option value="">-- Seleccionar --</option>
@@ -849,7 +849,7 @@ export const UploadView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Fecha Emisión <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -857,8 +857,8 @@ export const UploadView: React.FC = () => {
                     onChange={(e) => setInvoiceColMap({ ...invoiceColMap, fecha: e.target.value })}
                     className={`w-full text-xs rounded-lg p-2 font-medium border ${
                       !invoiceColMap.fecha
-                        ? 'border-red-300 bg-red-50 text-red-800'
-                        : 'border-slate-300 bg-white text-slate-800'
+                        ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200'
                     } focus:ring-2 focus:ring-blue-500`}
                   >
                     <option value="">-- Seleccionar --</option>
@@ -869,7 +869,7 @@ export const UploadView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Importe / Monto <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -877,8 +877,8 @@ export const UploadView: React.FC = () => {
                     onChange={(e) => setInvoiceColMap({ ...invoiceColMap, importe: e.target.value })}
                     className={`w-full text-xs rounded-lg p-2 font-medium border ${
                       !invoiceColMap.importe
-                        ? 'border-red-300 bg-red-50 text-red-800'
-                        : 'border-slate-300 bg-white text-slate-800'
+                        ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200'
                     } focus:ring-2 focus:ring-blue-500`}
                   >
                     <option value="">-- Seleccionar --</option>
@@ -889,11 +889,11 @@ export const UploadView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">RUT / CI</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">RUT / CI</label>
                   <select
                     value={invoiceColMap.rut_ci}
                     onChange={(e) => setInvoiceColMap({ ...invoiceColMap, rut_ci: e.target.value })}
-                    className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2 font-medium text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2 font-medium text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Opcional --</option>
                     {detectedHeaders.map((h) => (
@@ -903,11 +903,11 @@ export const UploadView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Vencimiento</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Vencimiento</label>
                   <select
                     value={invoiceColMap.vencimiento}
                     onChange={(e) => setInvoiceColMap({ ...invoiceColMap, vencimiento: e.target.value })}
-                    className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2 font-medium text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2 font-medium text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Igual a Emisión --</option>
                     {detectedHeaders.map((h) => (
@@ -917,11 +917,11 @@ export const UploadView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Moneda</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Moneda</label>
                   <select
                     value={invoiceColMap.moneda}
                     onChange={(e) => setInvoiceColMap({ ...invoiceColMap, moneda: e.target.value })}
-                    className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2 font-medium text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2 font-medium text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Por defecto ({company.currency}) --</option>
                     {detectedHeaders.map((h) => (
@@ -933,7 +933,7 @@ export const UploadView: React.FC = () => {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Fecha Operación <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -941,8 +941,8 @@ export const UploadView: React.FC = () => {
                     onChange={(e) => setBankColMap({ ...bankColMap, fecha: e.target.value })}
                     className={`w-full text-xs rounded-lg p-2 font-medium border ${
                       !bankColMap.fecha
-                        ? 'border-red-300 bg-red-50 text-red-800'
-                        : 'border-slate-300 bg-white text-slate-800'
+                        ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200'
                     } focus:ring-2 focus:ring-blue-500`}
                   >
                     <option value="">-- Seleccionar --</option>
@@ -953,7 +953,7 @@ export const UploadView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Monto / Crédito <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -961,8 +961,8 @@ export const UploadView: React.FC = () => {
                     onChange={(e) => setBankColMap({ ...bankColMap, monto: e.target.value })}
                     className={`w-full text-xs rounded-lg p-2 font-medium border ${
                       !bankColMap.monto
-                        ? 'border-red-300 bg-red-50 text-red-800'
-                        : 'border-slate-300 bg-white text-slate-800'
+                        ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200'
                     } focus:ring-2 focus:ring-blue-500`}
                   >
                     <option value="">-- Seleccionar --</option>
@@ -973,7 +973,7 @@ export const UploadView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                     Descripción <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -981,8 +981,8 @@ export const UploadView: React.FC = () => {
                     onChange={(e) => setBankColMap({ ...bankColMap, descripcion: e.target.value })}
                     className={`w-full text-xs rounded-lg p-2 font-medium border ${
                       !bankColMap.descripcion
-                        ? 'border-red-300 bg-red-50 text-red-800'
-                        : 'border-slate-300 bg-white text-slate-800'
+                        ? 'border-red-300 bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400'
+                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200'
                     } focus:ring-2 focus:ring-blue-500`}
                   >
                     <option value="">-- Seleccionar --</option>
@@ -993,11 +993,11 @@ export const UploadView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">N° Referencia</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">N° Referencia</label>
                   <select
                     value={bankColMap.referencia}
                     onChange={(e) => setBankColMap({ ...bankColMap, referencia: e.target.value })}
-                    className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2 font-medium text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2 font-medium text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Autogenerar --</option>
                     {detectedHeaders.map((h) => (
@@ -1007,11 +1007,11 @@ export const UploadView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Banco / Cuenta</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Banco / Cuenta</label>
                   <select
                     value={bankColMap.banco}
                     onChange={(e) => setBankColMap({ ...bankColMap, banco: e.target.value })}
-                    className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2 font-medium text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2 font-medium text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Banco Principal --</option>
                     {detectedHeaders.map((h) => (
@@ -1021,11 +1021,11 @@ export const UploadView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Moneda</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Moneda</label>
                   <select
                     value={bankColMap.moneda}
                     onChange={(e) => setBankColMap({ ...bankColMap, moneda: e.target.value })}
-                    className="w-full text-xs bg-white border border-slate-300 rounded-lg p-2 font-medium text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg p-2 font-medium text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Por defecto ({company.currency}) --</option>
                     {detectedHeaders.map((h) => (
@@ -1041,15 +1041,15 @@ export const UploadView: React.FC = () => {
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-slate-500" />
-                <span className="text-xs font-bold text-slate-700">Filtrar filas inspeccionadas:</span>
-                <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg">
+                <Filter className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Filtrar filas inspeccionadas:</span>
+                <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-lg">
                   <button
                     onClick={() => setValidationFilter('all')}
                     className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
                       validationFilter === 'all'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     Todas ({validationSummary.totalRows})
@@ -1059,7 +1059,7 @@ export const UploadView: React.FC = () => {
                     className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
                       validationFilter === 'errors'
                         ? 'bg-red-600 text-white shadow-xs'
-                        : 'text-red-700 hover:bg-red-50'
+                        : 'text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
                     }`}
                   >
                     Con Errores ({validationSummary.errorRowsCount})
@@ -1069,7 +1069,7 @@ export const UploadView: React.FC = () => {
                     className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
                       validationFilter === 'warnings'
                         ? 'bg-amber-600 text-white shadow-xs'
-                        : 'text-amber-700 hover:bg-amber-50'
+                        : 'text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'
                     }`}
                   >
                     Advertencias ({validationSummary.warningRowsCount})
@@ -1079,7 +1079,7 @@ export const UploadView: React.FC = () => {
                     className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
                       validationFilter === 'valid'
                         ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'text-emerald-700 hover:bg-emerald-50'
+                        : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
                     }`}
                   >
                     100% Válidas ({validationSummary.validRowsCount})
@@ -1088,7 +1088,7 @@ export const UploadView: React.FC = () => {
               </div>
 
               {validationSummary.issues.length > 0 && (
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
                   {validationSummary.issues.length} inconsistencia(s) detectada(s) por el validador
                 </span>
               )}
@@ -1096,15 +1096,15 @@ export const UploadView: React.FC = () => {
 
             {/* List of critical issues if any */}
             {validationSummary.issues.filter(i => i.severity === 'error').length > 0 && (
-              <div className="bg-red-50/70 border border-red-200/90 rounded-xl p-3.5 space-y-2">
+              <div className="bg-red-50/70 dark:bg-red-900/20 border border-red-200/90 dark:border-red-800 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center space-x-1.5 text-xs font-bold text-red-900">
-                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
                   <span>Detalle de Errores Críticos que Bloquean la Ingesta:</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
                   {validationSummary.issues.filter(i => i.severity === 'error').map((issue, idx) => (
-                    <div key={idx} className="text-[11px] bg-white p-2 rounded-lg border border-red-100 text-red-800 flex items-start space-x-1.5 shadow-2xs">
-                      <span className="font-bold shrink-0 bg-red-100 text-red-900 px-1.5 py-0.5 rounded text-[10px]">
+                    <div key={idx} className="text-[11px] bg-white dark:bg-slate-800 p-2 rounded-lg border border-red-100 dark:border-red-800 text-red-800 dark:text-red-400 flex items-start space-x-1.5 shadow-2xs">
+                      <span className="font-bold shrink-0 bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-400 px-1.5 py-0.5 rounded text-[10px]">
                         Fila {issue.rowIndex + 2}
                       </span>
                       <div>
@@ -1119,20 +1119,20 @@ export const UploadView: React.FC = () => {
           </div>
 
           {/* Interactive Row-by-Row Table Preview with Highlighting */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
-            <div className="bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-700 border-b border-slate-200 flex items-center justify-between">
+          <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-2xs">
+            <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Table className="h-4 w-4 text-slate-500" />
+                <Table className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                 <span>Auditoría de Filas ({filteredRowStatuses.length} mostradas)</span>
               </div>
-              <span className="text-[11px] text-slate-500 font-normal">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
                 Haz clic en una fila para ver el desglose de saneamiento de datos
               </span>
             </div>
 
             <div className="overflow-x-auto max-h-80">
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold border-b border-slate-200 sticky top-0 z-10 shadow-2xs">
+              <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+                <thead className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 uppercase text-[10px] font-bold border-b border-slate-200 dark:border-slate-600 sticky top-0 z-10 shadow-2xs">
                   <tr>
                     <th className="px-3 py-2.5 text-center w-12">#</th>
                     <th className="px-3 py-2.5 w-28">Auditoría</th>
@@ -1142,10 +1142,10 @@ export const UploadView: React.FC = () => {
                     <th className="px-3 py-2.5 text-right w-24">Valor Limpio</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                   {filteredRowStatuses.length === 0 ? (
                     <tr>
-                      <td colSpan={detectedHeaders.length + 3} className="px-4 py-8 text-center text-slate-400 text-xs">
+                      <td colSpan={detectedHeaders.length + 3} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
                         No hay filas que coincidan con el filtro seleccionado.
                       </td>
                     </tr>
@@ -1161,32 +1161,32 @@ export const UploadView: React.FC = () => {
                             onClick={() => setExpandedRowIndex(isExpanded ? null : rowStatus.rowIndex)}
                             className={`cursor-pointer transition-colors ${
                               hasErrors
-                                ? 'bg-red-50/50 hover:bg-red-50'
+                                ? 'bg-red-50/50 dark:bg-red-900/20 hover:bg-red-50 dark:hover:bg-red-900/30'
                                 : hasWarnings
-                                ? 'bg-amber-50/40 hover:bg-amber-50/70'
-                                : 'hover:bg-slate-50'
+                                ? 'bg-amber-50/40 dark:bg-amber-900/20 hover:bg-amber-50/70 dark:hover:bg-amber-900/30'
+                                : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
                             }`}
                           >
                             {/* Row Number */}
-                            <td className="px-3 py-2 text-center text-[11px] font-mono text-slate-500 font-semibold">
+                            <td className="px-3 py-2 text-center text-[11px] font-mono text-slate-500 dark:text-slate-400 font-semibold">
                               {rowStatus.rowNumber}
                             </td>
 
                             {/* Status Badge */}
                             <td className="px-3 py-2 whitespace-nowrap">
                               {hasErrors ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 border border-red-200">
-                                  <AlertCircle className="h-3 w-3 mr-1 text-red-600" />
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 border border-red-200 dark:border-red-800">
+                                  <AlertCircle className="h-3 w-3 mr-1 text-red-600 dark:text-red-400" />
                                   Error
                                 </span>
                               ) : hasWarnings ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                                  <AlertTriangle className="h-3 w-3 mr-1 text-amber-600" />
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                                  <AlertTriangle className="h-3 w-3 mr-1 text-amber-600 dark:text-amber-400" />
                                   Advertencia
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                  <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                                  <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600 dark:text-emerald-400" />
                                   Válida
                                 </span>
                               )}
@@ -1215,16 +1215,16 @@ export const UploadView: React.FC = () => {
                               return (
                                 <td
                                   key={header}
-                                  className={`px-3 py-2 whitespace-nowrap text-xs ${
-                                    cellIssue
-                                      ? cellIssue.severity === 'error'
-                                        ? 'bg-red-100/80 text-red-900 font-bold underline decoration-red-500 decoration-wavy'
-                                        : 'bg-amber-100/80 text-amber-900 font-semibold'
-                                      : 'text-slate-700'
-                                  }`}
+                                   className={`px-3 py-2 whitespace-nowrap text-xs ${
+                                     cellIssue
+                                       ? cellIssue.severity === 'error'
+                                         ? 'bg-red-100/80 dark:bg-red-900/30 text-red-900 font-bold underline decoration-red-500 decoration-wavy'
+                                         : 'bg-amber-100/80 dark:bg-amber-900/30 text-amber-900 font-semibold'
+                                       : 'text-slate-700 dark:text-slate-300'
+                                   }`}
                                   title={cellIssue?.message || cellValue}
                                 >
-                                  {cellValue || <span className="text-slate-300 italic font-normal">(vacío)</span>}
+                                  {cellValue || <span className="text-slate-300 dark:text-slate-600 italic font-normal">(vacío)</span>}
                                 </td>
                               );
                             })}
@@ -1232,23 +1232,23 @@ export const UploadView: React.FC = () => {
                             {/* Clean/Sanitized preview indicator */}
                             <td className="px-3 py-2 text-right whitespace-nowrap">
                               {rowStatus.sanitizedData ? (
-                                <span className="text-[11px] font-mono font-bold text-emerald-700">
+                                <span className="text-[11px] font-mono font-bold text-emerald-700 dark:text-emerald-400">
                                   {activeUploadType === 'invoices'
                                     ? `$ ${(rowStatus.sanitizedData as Invoice).importe.toLocaleString()}`
                                     : `$ ${(rowStatus.sanitizedData as BankMovement).monto.toLocaleString()}`}
                                 </span>
                               ) : (
-                                <span className="text-[10px] text-red-500 font-semibold">Omitida</span>
+                                <span className="text-[10px] text-red-500 dark:text-red-400 font-semibold">Omitida</span>
                               )}
                             </td>
                           </tr>
 
                           {/* Expanded Row Issue Details */}
                           {isExpanded && rowStatus.issues.length > 0 && (
-                            <tr className="bg-slate-50/90 border-y border-slate-200">
+                            <tr className="bg-slate-50/90 dark:bg-slate-800/50 border-y border-slate-200 dark:border-slate-700">
                               <td colSpan={detectedHeaders.length + 3} className="px-6 py-3">
                                 <div className="space-y-1.5">
-                                  <p className="text-xs font-bold text-slate-800">
+                                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
                                     Auditoría detallada de la Fila {rowStatus.rowNumber}:
                                   </p>
                                   <div className="space-y-1">
@@ -1257,14 +1257,14 @@ export const UploadView: React.FC = () => {
                                         key={issueIdx}
                                         className={`text-xs px-3 py-1.5 rounded-lg flex items-center space-x-2 ${
                                           issue.severity === 'error'
-                                            ? 'bg-red-100 text-red-900 font-medium'
-                                            : 'bg-amber-100 text-amber-900 font-medium'
+                                            ? 'bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-400 font-medium'
+                                            : 'bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-400 font-medium'
                                         }`}
                                       >
                                         {issue.severity === 'error' ? (
-                                          <AlertCircle className="h-3.5 w-3.5 text-red-600 shrink-0" />
+                                          <AlertCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400 shrink-0" />
                                         ) : (
-                                          <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                          <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                                         )}
                                         <span>
                                           <strong>{issue.fieldLabel}:</strong> {issue.message}
@@ -1288,10 +1288,10 @@ export const UploadView: React.FC = () => {
       )}
 
       {/* Guide Note */}
-      <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200/80 flex items-start space-x-3 text-xs text-slate-600">
-        <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-700 flex items-start space-x-3 text-xs text-slate-600 dark:text-slate-400">
+        <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="font-semibold text-slate-800">
+          <p className="font-semibold text-slate-800 dark:text-slate-200">
             ¿Cómo garantiza la capa de validación la integridad antes del matching?
           </p>
           <p className="leading-relaxed">

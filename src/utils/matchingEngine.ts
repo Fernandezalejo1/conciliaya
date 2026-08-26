@@ -567,6 +567,16 @@ export function matchBankMovement(
   // Extract clean client name from bank description (strip addresses, refs, etc.)
   const extractedName = extractClientNameFromBankDesc(rawDesc);
 
+  // Apply known business name mismatches
+  const KNOWN_MISMATCHES: Record<string, string> = { 'TRANSCOM': 'LARRAÑAGA' };
+  let effectiveExtractedName = extractedName;
+  for (const [bankKey, clientKey] of Object.entries(KNOWN_MISMATCHES)) {
+    if (normalizeText(rawDesc).includes(normalizeText(bankKey))) {
+      effectiveExtractedName = normalizeText(clientKey);
+      break;
+    }
+  }
+
   for (const client of clients) {
     let maxScore = 0;
     let reason = '';
@@ -582,10 +592,10 @@ export function matchBankMovement(
 
     if (maxScore < 0.98) {
       // 1. Compare extracted clean name vs client name (best for bank descriptions with addresses)
-      const extractedSim = stringSimilarity(extractedName, client.name);
+      const extractedSim = stringSimilarity(effectiveExtractedName, client.name);
       if (extractedSim > maxScore) {
         maxScore = extractedSim;
-        reason = `Nombre extraído del extracto ("${extractedName}") coincide con "${client.name}" (${Math.round(extractedSim * 100)}%)`;
+        reason = `Nombre extraído del extracto ("${effectiveExtractedName}") coincide con "${client.name}" (${Math.round(extractedSim * 100)}%)`;
       }
 
       // 2. Direct name similarity (full description vs client name)
@@ -597,25 +607,25 @@ export function matchBankMovement(
 
       // 3. Check if extracted name exactly contains client name or vice versa
       const normClientName = normalizeText(client.name);
-      if (normClientName.length >= 3 && extractedName.includes(normClientName)) {
+      if (normClientName.length >= 3 && effectiveExtractedName.includes(normClientName)) {
         const containScore = 0.95;
         if (containScore > maxScore) {
           maxScore = containScore;
           reason = `Nombre del extracto contiene "${client.name}" exactamente`;
         }
       }
-      if (extractedName.length >= 3 && normClientName.includes(extractedName)) {
+      if (effectiveExtractedName.length >= 3 && normClientName.includes(effectiveExtractedName)) {
         const containScore = 0.93;
         if (containScore > maxScore) {
           maxScore = containScore;
-          reason = `"${client.name}" contiene el nombre extraído "${extractedName}"`;
+          reason = `"${client.name}" contiene el nombre extraído "${effectiveExtractedName}"`;
         }
       }
 
       // 4. Check client known aliases
       if (client.alias_conocidos && client.alias_conocidos.length > 0) {
         for (const alias of client.alias_conocidos) {
-          const aliasSim = stringSimilarity(extractedName, alias);
+          const aliasSim = stringSimilarity(effectiveExtractedName, alias);
           if (aliasSim > maxScore) {
             maxScore = aliasSim;
             reason = `Similitud con alias registrado "${alias}" (${Math.round(aliasSim * 100)}%)`;
@@ -801,6 +811,301 @@ export function matchBankMovement(
   }
 
   return null;
+}
+
+/**
+ * FIFO Client-Level Allocation
+ * 
+ * Instead of matching each movement independently, this function:
+ * 1. Groups credit movements by client (using extractClientNameFromBankDesc)
+ * 2. Sorts movements chronologically within each client
+ * 3. Allocates each payment to the oldest open invoices (FIFO)
+ * 4. Returns a map of movement suggestions
+ *
+ * This reproduces the accounting standard: oldest cobro applies to oldest factura.
+ */
+export function runFIFOAllocation(
+  movements: BankMovement[],
+  invoices: Invoice[],
+  clients: Client[],
+  learnedAliases: LearnedAlias[],
+  autoThreshold: number = 0.90,
+  usdExchangeRate: number = 40.50
+): Map<string, SuggestedMatch | null> {
+  const results = new Map<string, SuggestedMatch | null>();
+
+  // Only process credit movements
+  const creditMovs = movements.filter(m => m.es_credito && m.monto > 0);
+
+  // Group movements by client, also tracking the extracted name for sub-pool matching
+  const clientMovements = new Map<string, { mov: BankMovement; extractedName: string }[]>();
+  const unmatchedMovements: BankMovement[] = [];
+
+  for (const mov of creditMovs) {
+    const extractedName = extractClientNameFromBankDesc(mov.descripcion_cruda);
+    const cleanDesc = stripBankNoise(mov.descripcion_cruda);
+
+    // Known business name mismatches (bank desc → client name)
+    const KNOWN_MISMATCHES: Record<string, string> = {
+      'TRANSCOM': 'LARRAÑAGA',
+    };
+
+    let effectiveExtractedName = extractedName;
+    for (const [bankKey, clientKey] of Object.entries(KNOWN_MISMATCHES)) {
+      if (normalizeText(mov.descripcion_cruda).includes(normalizeText(bankKey))) {
+        effectiveExtractedName = normalizeText(clientKey);
+        break;
+      }
+    }
+
+    // Find best matching client
+    let bestClient: Client | null = null;
+    let bestScore = 0;
+
+    for (const client of clients) {
+      let score = 0;
+
+      // Check extracted name vs client name
+      const nameSim = stringSimilarity(effectiveExtractedName, client.name);
+      if (nameSim > score) score = nameSim;
+
+      // Direct name similarity
+      const directSim = stringSimilarity(cleanDesc, client.name);
+      if (directSim > score) score = directSim;
+
+      // Contains check
+      const normClient = normalizeText(client.name);
+      if (normClient.length >= 3 && effectiveExtractedName.includes(normClient)) {
+        if (0.95 > score) score = 0.95;
+      }
+      if (effectiveExtractedName.length >= 3 && normClient.includes(effectiveExtractedName)) {
+        if (0.93 > score) score = 0.93;
+      }
+
+      // Alias check
+      if (client.alias_conocidos) {
+        for (const alias of client.alias_conocidos) {
+          const aliasSim = stringSimilarity(effectiveExtractedName, alias);
+          if (aliasSim > score) score = aliasSim;
+        }
+      }
+
+      // Learned aliases
+      for (const la of learnedAliases) {
+        if (la.cliente_id === client.id) {
+          const normAlias = normalizeText(la.texto_referencia);
+          if (normalizeText(mov.descripcion_cruda).includes(normAlias) || cleanDesc.includes(normAlias)) {
+            if (1.0 > score) score = 1.0;
+          }
+        }
+      }
+
+      if (score > bestScore && score >= 0.55) {
+        bestScore = score;
+        bestClient = client;
+      }
+    }
+
+    if (bestClient) {
+      const key = bestClient.id;
+      if (!clientMovements.has(key)) clientMovements.set(key, []);
+      clientMovements.get(key)!.push({ mov, extractedName: effectiveExtractedName });
+    } else {
+      unmatchedMovements.push(mov);
+    }
+  }
+
+  // Mark unmatched movements
+  for (const mov of unmatchedMovements) {
+    results.set(mov.id, null);
+  }
+
+  // Mark non-credit movements as not applicable
+  for (const mov of movements) {
+    if (!mov.es_credito || mov.monto <= 0) {
+      results.set(mov.id, null);
+    }
+  }
+
+  // For each client, run FIFO allocation
+  for (const [clientId, movEntries] of clientMovements) {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) continue;
+
+    // Sort movements chronologically
+    movEntries.sort((a, b) => {
+      const da = a.mov.fecha ? new Date(a.mov.fecha).getTime() : 0;
+      const db = b.mov.fecha ? new Date(b.mov.fecha).getTime() : 0;
+      return da - db;
+    });
+
+    // Get open invoices for this client, sorted by date (FIFO)
+    const allClientInvoices = invoices
+      .filter(i => {
+        if (i.saldo_pendiente <= 0.01 || i.estado === 'pagada' || i.estado === 'anulada') return false;
+        if (i.cliente_id === clientId) return true;
+        const invNames = [i.cliente_nombre, ...(i.cliente_nombre_alt || [])].filter(Boolean).map(n => normalizeText(n));
+        const clientNorm = normalizeText(client.name);
+        return invNames.some(n => n === clientNorm || stringSimilarity(n, clientNorm) > 0.85);
+      })
+      .sort((a, b) => {
+        const da = a.fecha ? new Date(a.fecha).getTime() : 0;
+        const db = b.fecha ? new Date(b.fecha).getTime() : 0;
+        return da - db;
+      });
+
+    // Track remaining balance per invoice (across all movements for this client)
+    const invoiceRemaining = new Map<string, number>();
+    for (const inv of allClientInvoices) {
+      invoiceRemaining.set(inv.id, inv.saldo_pendiente);
+    }
+
+    // Process each movement in chronological order
+    for (const { mov, extractedName } of movEntries) {
+      // Sub-pool matching: when a client has invoices with different razonSocial values
+      // (e.g., Cardinal has "Cordero SA" and "CARDINAL CONSTRUCCIONES SAS"),
+      // if the movement name matches a specific razonSocial, only allocate to those invoices.
+      // If the movement matches the parent empresa, exclude invoices with a clearly
+      // different razonSocial (different company name, not just a subsidiary variant).
+      let poolInvoices = allClientInvoices;
+
+      // Check if extracted name matches any specific alt name (razonSocial)
+      const matchingAltInvoices = allClientInvoices.filter(i => {
+        const alts = (i.cliente_nombre_alt || []).map(a => normalizeText(a));
+        return alts.some(a => a.length >= 3 && stringSimilarity(extractedName, a) > 0.7);
+      });
+
+      if (matchingAltInvoices.length > 0 && matchingAltInvoices.length < allClientInvoices.length) {
+        // Some invoices match the specific alt name, some don't — use the matched subset
+        poolInvoices = matchingAltInvoices;
+      } else if (matchingAltInvoices.length === 0) {
+        // No specific alt match — check if there are distinct razonSocial groups
+        // and the payment matches the parent empresa. If so, exclude minority groups
+        // whose core name doesn't share a significant token with the payment.
+        const extractedNorm = normalizeText(extractedName);
+        const normClient = normalizeText(client.name);
+        const paymentMatchesParent = extractedNorm === normClient ||
+          stringSimilarity(extractedNorm, normClient) > 0.7 ||
+          extractedNorm.includes(normClient) || normClient.includes(extractedNorm);
+
+        if (paymentMatchesParent) {
+          // Extract core names from razonSocial (first alt name) per invoice
+          const coreGroups = new Map<string, number>(); // core → count
+          for (const i of allClientInvoices) {
+            const alts = (i.cliente_nombre_alt || []).map(a => normalizeText(a));
+            if (alts.length > 0) {
+              const core = alts[0].replace(/\s*\(.*?\)\s*/g, '').replace(/\b(SAS?|S\s*A|S\s*R\s*L|S\s*A\s*S|L\s*T\s*D\s*A|E\s*I\s*R\s*L)\b\.?\s*/gi, '').trim();
+              if (core.length >= 3) coreGroups.set(core, (coreGroups.get(core) || 0) + 1);
+            }
+          }
+
+          if (coreGroups.size > 1) {
+            // Find the dominant core (most invoices)
+            const sorted = [...coreGroups.entries()].sort((a, b) => b[1] - a[1]);
+            const dominantCore = sorted[0][0];
+            const dominantCount = sorted[0][1];
+            const totalCount = [...coreGroups.values()].reduce((a, b) => a + b, 0);
+
+            // Check if dominant group is >50% of invoices (clear majority)
+            if (dominantCount > totalCount * 0.5) {
+              // Check if dominant core shares a significant token (>3 chars) with extracted name
+              const domTokens = dominantCore.split(' ').filter(t => t.length > 3);
+              const extTokens = extractedNorm.split(' ').filter(t => t.length > 3);
+              const sharesToken = domTokens.some(dt => extTokens.some(et => dt === et || dt.includes(et) || et.includes(dt)));
+
+              if (sharesToken) {
+                // Filter to invoices whose razonSocial core matches the dominant core
+                const filtered = allClientInvoices.filter(i => {
+                  const alts = (i.cliente_nombre_alt || []).map(a => normalizeText(a));
+                  if (alts.length === 0) return true; // No razonSocial → include (e.g., A13 with empty razon)
+                  const core = alts[0].replace(/\s*\(.*?\)\s*/g, '').replace(/\b(SAS?|S\s*A|S\s*R\s*L|S\s*A\s*S|L\s*T\s*D\s*A|E\s*I\s*R\s*L)\b\.?\s*/gi, '').trim();
+                  if (core.length < 3) return true;
+                  return stringSimilarity(core, dominantCore) > 0.5 ||
+                    core.includes(dominantCore) || dominantCore.includes(core);
+                });
+                if (filtered.length > 0) poolInvoices = filtered;
+              }
+            }
+          }
+        }
+      }
+
+      let remaining = mov.monto;
+      const allocated: SuggestedMatch['facturas'] = [];
+
+      for (const inv of poolInvoices) {
+        if (remaining <= 0.01) break;
+        const invRemain = invoiceRemaining.get(inv.id) || 0;
+        if (invRemain <= 0.01) continue;
+
+        const apply = Math.min(invRemain, remaining);
+        allocated.push({
+          factura_id: inv.id,
+          factura_numero: inv.numero,
+          importe: inv.importe,
+          saldo_pendiente: invRemain,
+          monto_a_aplicar: apply,
+          moneda: inv.moneda
+        });
+        invoiceRemaining.set(inv.id, invRemain - apply);
+        remaining -= apply;
+      }
+
+      if (allocated.length > 0) {
+        const confianza = Math.min(96, Math.round(bestScoreForMov(mov, client, clients, learnedAliases) * 100));
+        const exactInvoice = allocated.length === 1 && Math.abs(allocated[0].monto_a_aplicar - allocated[0].saldo_pendiente) < 0.01;
+        const overpay = remaining;
+
+        results.set(mov.id, {
+          cliente_id: client.id,
+          cliente_nombre: client.name,
+          confianza,
+          motivo: exactInvoice
+            ? `FIFO: Pago exacto a Factura ${allocated[0].factura_numero}`
+            : `FIFO: Distribución en ${allocated.length} factura(s) por orden cronológico${overpay > 0.01 ? ` + Saldo a favor $${overpay.toFixed(2)}` : ''}`,
+          tipo: overpay > 0.01 ? 'sobrepago' : (allocated.length === 1 ? 'exacto_factura' : 'multi_factura'),
+          facturas: allocated,
+          saldo_a_favor_estimado: overpay > 0.01 ? overpay : undefined
+        });
+      } else {
+        results.set(mov.id, null);
+      }
+    }
+  }
+
+  return results;
+}
+
+function bestScoreForMov(mov: BankMovement, client: Client, clients: Client[], aliases: LearnedAlias[]): number {
+  const extractedName = extractClientNameFromBankDesc(mov.descripcion_cruda);
+  const cleanDesc = stripBankNoise(mov.descripcion_cruda);
+
+  // Apply same known business name mismatches
+  const KNOWN_MISMATCHES: Record<string, string> = { 'TRANSCOM': 'LARRAÑAGA' };
+  let effectiveName = extractedName;
+  for (const [bankKey, clientKey] of Object.entries(KNOWN_MISMATCHES)) {
+    if (normalizeText(mov.descripcion_cruda).includes(normalizeText(bankKey))) {
+      effectiveName = normalizeText(clientKey);
+      break;
+    }
+  }
+
+  let best = 0;
+
+  const nameSim = stringSimilarity(effectiveName, client.name);
+  if (nameSim > best) best = nameSim;
+  const directSim = stringSimilarity(cleanDesc, client.name);
+  if (directSim > best) best = directSim;
+  const normClient = normalizeText(client.name);
+  if (normClient.length >= 3 && effectiveName.includes(normClient)) if (0.95 > best) best = 0.95;
+  if (effectiveName.length >= 3 && normClient.includes(effectiveName)) if (0.93 > best) best = 0.93;
+  if (client.alias_conocidos) {
+    for (const alias of client.alias_conocidos) {
+      const s = stringSimilarity(effectiveName, alias);
+      if (s > best) best = s;
+    }
+  }
+  return best;
 }
 
 /**

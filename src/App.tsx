@@ -47,19 +47,19 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/60 text-slate-900 font-sans antialiased selection:bg-blue-500 selection:text-white flex flex-col">
+    <div className="min-h-screen bg-slate-50/60 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-blue-500 selection:text-white flex flex-col">
       <Navbar onLogout={handleLogout} />
       <div className="flex-1">
         <MainContent />
       </div>
 
-      <footer className="border-t border-slate-200/80 bg-white py-4 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+      <footer className="border-t border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 py-4 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
           <div className="flex items-center space-x-2">
-            <span className="font-semibold text-slate-700">ConciliaYA</span>
+            <span className="font-semibold text-slate-700 dark:text-slate-300">ConciliaYA</span>
             <span>— Plataforma de Conciliación de Cuentas por Cobrar</span>
           </div>
-          <div className="flex items-center space-x-3 text-slate-400">
+          <div className="flex items-center space-x-3 text-slate-400 dark:text-slate-500">
             <span>Modo Operador B2B</span>
             <span>•</span>
             <span>Auditoría Determinística 100% Humano-en-el-Bucle</span>

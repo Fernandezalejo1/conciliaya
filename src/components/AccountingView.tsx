@@ -131,9 +131,9 @@ export const AccountingView: React.FC = () => {
     <div className="space-y-6">
       {/* Toast Notification */}
       {notificationMsg && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-900 px-4 py-3 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs">
           <div className="flex items-center space-x-2">
-            <CheckCircle className="h-4 w-4 text-amber-600" />
+            <CheckCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             <span>{notificationMsg}</span>
           </div>
           <button onClick={() => setNotificationMsg(null)} className="text-amber-500 hover:text-amber-700 cursor-pointer">
@@ -143,15 +143,15 @@ export const AccountingView: React.FC = () => {
       )}
 
       {/* Top Header */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <span className="p-2 rounded-lg bg-indigo-50 text-indigo-700">
+            <span className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700">
               <FileSpreadsheet className="h-5 w-5" />
             </span>
-            <h1 className="text-xl font-bold text-slate-900">Exportación Contable y Recibos Oficiales</h1>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Exportación Contable y Recibos Oficiales</h1>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Generación automática de asientos de partida doble y comprobantes de cobranza listos para importar en ERPs (Memory, SAP, Contasol, ContaSys).
           </p>
         </div>
@@ -166,23 +166,23 @@ export const AccountingView: React.FC = () => {
           </button>
           <button
             onClick={exportReceiptsCSV}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
           >
-            <Download className="h-4 w-4 mr-2 text-slate-500" />
+            <Download className="h-4 w-4 mr-2 text-slate-500 dark:text-slate-400" />
             Exportar Recibos
           </button>
         </div>
       </div>
 
       {/* Sub Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
         <div className="flex space-x-2">
           <button
             onClick={() => setActiveSubTab('entries')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeSubTab === 'entries'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -196,7 +196,7 @@ export const AccountingView: React.FC = () => {
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeSubTab === 'receipts'
                 ? 'bg-indigo-600 text-white shadow-xs'
-                : 'text-slate-600 hover:bg-slate-100'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -208,13 +208,13 @@ export const AccountingView: React.FC = () => {
 
         {/* Search */}
         <div className="relative w-72">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
             placeholder="Buscar por número, cliente o concepto..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full pl-9 pr-4 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
       </div>
@@ -223,35 +223,35 @@ export const AccountingView: React.FC = () => {
       {activeSubTab === 'entries' && (
         <div className="space-y-4">
           {filteredEntries.length === 0 ? (
-            <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center">
               <FileText className="h-10 w-10 mx-auto text-slate-300 mb-3" />
-              <h3 className="text-base font-semibold text-slate-800">No hay asientos contables generados</h3>
-              <p className="text-sm text-slate-500 max-w-md mx-auto mt-1">
+              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">No hay asientos contables generados</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1">
                 A medida que confirmes conciliaciones en la pestaña Conciliación, el sistema creará automáticamente los asientos de cobranza balanceados.
               </p>
             </div>
           ) : (
             filteredEntries.map(entry => (
-              <div key={entry.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-                <div className="bg-slate-50 px-6 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+              <div key={entry.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs">
+                <div className="bg-slate-50 dark:bg-slate-800/50 px-6 py-3 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center space-x-3">
-                    <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded text-xs border border-indigo-200">
+                    <span className="font-mono font-bold text-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 px-2.5 py-1 rounded text-xs border border-indigo-200">
                       {entry.asiento_numero}
                     </span>
-                    <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
+                    <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 font-medium">
                       <Calendar className="h-3.5 w-3.5" />
                       {entry.fecha}
                     </span>
-                    <span className="text-sm font-semibold text-slate-800">
+                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                       {entry.concepto}
                     </span>
                   </div>
 
                   <div className="flex items-center space-x-4 text-xs">
-                    <span className="text-slate-500">
-                      Moneda: <strong className="text-slate-700">{entry.moneda}</strong>
+                    <span className="text-slate-500 dark:text-slate-400">
+                      Moneda: <strong className="text-slate-700 dark:text-slate-300">{entry.moneda}</strong>
                     </span>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 border border-emerald-200 dark:border-emerald-800">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Balanceado ({company.currencySymbol}{entry.total_debito.toLocaleString()})
                     </span>
@@ -261,7 +261,7 @@ export const AccountingView: React.FC = () => {
                 <div className="p-4 overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider">
+                      <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">
                         <th className="py-2 px-3 w-28">Cuenta</th>
                         <th className="py-2 px-3">Descripción de Cuenta</th>
                         <th className="py-2 px-3">Referencia / Facturas</th>
@@ -269,24 +269,24 @@ export const AccountingView: React.FC = () => {
                         <th className="py-2 px-3 text-right w-32">Crédito</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 font-mono">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700 font-mono">
                       {entry.lineas.map((line, idx) => (
                         <tr key={idx} className="hover:bg-slate-50/70">
-                          <td className="py-2 px-3 font-semibold text-slate-700">{line.cuenta_codigo}</td>
-                          <td className="py-2 px-3 font-sans text-slate-800">{line.cuenta_nombre}</td>
-                          <td className="py-2 px-3 font-sans text-slate-500">{line.referencia || '-'}</td>
-                          <td className="py-2 px-3 text-right font-semibold text-slate-900">
+                          <td className="py-2 px-3 font-semibold text-slate-700 dark:text-slate-300">{line.cuenta_codigo}</td>
+                          <td className="py-2 px-3 font-sans text-slate-800 dark:text-slate-200">{line.cuenta_nombre}</td>
+                          <td className="py-2 px-3 font-sans text-slate-500 dark:text-slate-400">{line.referencia || '-'}</td>
+                          <td className="py-2 px-3 text-right font-semibold text-slate-900 dark:text-white">
                             {line.debito > 0 ? `${company.currencySymbol}${line.debito.toLocaleString()}` : '-'}
                           </td>
-                          <td className="py-2 px-3 text-right font-semibold text-slate-900">
+                          <td className="py-2 px-3 text-right font-semibold text-slate-900 dark:text-white">
                             {line.credito > 0 ? `${company.currencySymbol}${line.credito.toLocaleString()}` : '-'}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t-2 border-slate-300 font-bold bg-slate-50/50">
-                        <td colSpan={3} className="py-2 px-3 text-right font-sans text-slate-700">TOTALES:</td>
+                      <tr className="border-t-2 border-slate-300 dark:border-slate-600 font-bold bg-slate-50/50">
+                        <td colSpan={3} className="py-2 px-3 text-right font-sans text-slate-700 dark:text-slate-300">TOTALES:</td>
                         <td className="py-2 px-3 text-right text-indigo-700 font-mono">
                           {company.currencySymbol}{entry.total_debito.toLocaleString()}
                         </td>
@@ -307,51 +307,51 @@ export const AccountingView: React.FC = () => {
       {activeSubTab === 'receipts' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredReceipts.length === 0 ? (
-            <div className="col-span-full bg-white rounded-xl border border-slate-200 p-12 text-center">
+            <div className="col-span-full bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-12 text-center">
               <Receipt className="h-10 w-10 mx-auto text-slate-300 mb-3" />
-              <h3 className="text-base font-semibold text-slate-800">No hay recibos de cobranza</h3>
-              <p className="text-sm text-slate-500 max-w-md mx-auto mt-1">
+              <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">No hay recibos de cobranza</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-1">
                 Al conciliar pagos se emitirán automáticamente los recibos oficiales numerados con el detalle de facturas canceladas y retenciones.
               </p>
             </div>
           ) : (
             filteredReceipts.map(rec => (
-              <div key={rec.id} className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between hover:border-indigo-300 transition-all">
+              <div key={rec.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-xs flex flex-col justify-between hover:border-indigo-300 transition-all">
                 <div>
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3 mb-3">
                     <div>
-                      <span className="font-mono font-bold text-xs text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                      <span className="font-mono font-bold text-xs text-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded border border-indigo-200">
                         {rec.numero_recibo}
                       </span>
-                      <p className="text-xs text-slate-400 mt-1">{rec.fecha}</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{rec.fecha}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-slate-900">
+                      <p className="text-lg font-bold text-slate-900 dark:text-white">
                         {rec.moneda === 'USD' ? 'US$' : '$'}{rec.monto_total_cobrado.toLocaleString()}
                       </p>
-                      <span className="text-2xs font-semibold text-slate-500 uppercase">{rec.moneda}</span>
+                      <span className="text-2xs font-semibold text-slate-500 dark:text-slate-400 uppercase">{rec.moneda}</span>
                     </div>
                   </div>
 
-                  <h4 className="font-semibold text-slate-900 text-sm mb-1 line-clamp-1">{rec.cliente_nombre}</h4>
-                  <p className="text-xs text-slate-500 mb-3">RUT/CI: {rec.cliente_rut || 'Sin registrar'} • {rec.banco}</p>
+                  <h4 className="font-semibold text-slate-900 dark:text-white text-sm mb-1 line-clamp-1">{rec.cliente_nombre}</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">RUT/CI: {rec.cliente_rut || 'Sin registrar'} • {rec.banco}</p>
 
-                  <div className="space-y-1.5 text-xs bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <p className="font-medium text-slate-700 mb-1">Facturas canceladas:</p>
+                  <div className="space-y-1.5 text-xs bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700">
+                    <p className="font-medium text-slate-700 dark:text-slate-300 mb-1">Facturas canceladas:</p>
                     {rec.facturas_canceladas.map((f, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-slate-600">
-                        <span className="font-mono text-slate-800">{f.factura_numero}</span>
+                      <div key={idx} className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                        <span className="font-mono text-slate-800 dark:text-slate-200">{f.factura_numero}</span>
                         <span>{company.currencySymbol}{f.monto_aplicado.toLocaleString()}</span>
                       </div>
                     ))}
                     {rec.retencion_fiscal > 0 && (
-                      <div className="flex items-center justify-between text-amber-700 font-medium pt-1 border-t border-slate-200">
-                        <span>Retención Fiscal:</span>
+                      <div className="flex items-center justify-between text-amber-700 dark:text-amber-400 font-medium pt-1 border-t border-slate-200 dark:border-slate-700">
+                        <span className="font-medium text-amber-700 dark:text-amber-400">Retención Fiscal:</span>
                         <span>+{company.currencySymbol}{rec.retencion_fiscal.toLocaleString()}</span>
                       </div>
                     )}
                     {rec.saldo_a_favor_generado > 0 && (
-                      <div className="flex items-center justify-between text-blue-700 font-medium pt-1 border-t border-slate-200">
+                      <div className="flex items-center justify-between text-blue-700 dark:text-blue-400 font-medium pt-1 border-t border-slate-200 dark:border-slate-700">
                         <span>Saldo a Favor generado:</span>
                         <span>{company.currencySymbol}{rec.saldo_a_favor_generado.toLocaleString()}</span>
                       </div>
@@ -359,11 +359,11 @@ export const AccountingView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Emitido: {rec.emitido_por}</span>
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                  <span className="text-xs text-slate-400 dark:text-slate-500">Emitido: {rec.emitido_por}</span>
                   <button
                     onClick={() => setSelectedReceipt(rec)}
-                    className="inline-flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                    className="inline-flex items-center text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800"
                   >
                     <Printer className="h-3.5 w-3.5 mr-1" />
                     Ver Comprobante
@@ -378,16 +378,16 @@ export const AccountingView: React.FC = () => {
       {/* Printable Receipt Modal */}
       {selectedReceipt && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Receipt Content */}
             <div className="p-8 space-y-6" id="printable-receipt">
               {/* Header */}
               <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
                 <div>
-                  <h2 className="text-xl font-black tracking-tight text-slate-900">{company.name}</h2>
-                  <p className="text-xs text-slate-500">RUT {company.rut}</p>
-                  <p className="text-xs text-slate-500">{company.address || 'Montevideo, Uruguay'}</p>
-                  <p className="text-xs text-slate-500">{company.phone} • {company.email}</p>
+                <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">{company.name}</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">RUT {company.rut}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{company.address || 'Montevideo, Uruguay'}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{company.phone} • {company.email}</p>
                 </div>
 
                 <div className="text-right">
@@ -395,21 +395,21 @@ export const AccountingView: React.FC = () => {
                     <p className="text-2xs font-semibold uppercase tracking-widest text-slate-300">Recibo Oficial de Cobranza</p>
                     <p className="text-lg font-mono font-bold">{selectedReceipt.numero_recibo}</p>
                   </div>
-                  <p className="text-xs text-slate-500 mt-2 font-medium">Fecha de Emisión: {selectedReceipt.fecha}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 font-medium">Fecha de Emisión: {selectedReceipt.fecha}</p>
                 </div>
               </div>
 
               {/* Client and Bank info */}
-              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
                 <div>
-                  <span className="text-slate-400 uppercase font-semibold text-2xs">Recibimos de:</span>
-                  <p className="font-bold text-slate-900 text-sm">{selectedReceipt.cliente_nombre}</p>
-                  <p className="text-slate-600">RUT / C.I.: {selectedReceipt.cliente_rut || 'Sin especificar'}</p>
+                  <span className="text-slate-400 dark:text-slate-500 uppercase font-semibold text-2xs">Recibimos de:</span>
+                  <p className="font-bold text-slate-900 dark:text-white text-sm">{selectedReceipt.cliente_nombre}</p>
+                  <p className="text-slate-600 dark:text-slate-400">RUT / C.I.: {selectedReceipt.cliente_rut || 'Sin especificar'}</p>
                 </div>
                 <div>
-                  <span className="text-slate-400 uppercase font-semibold text-2xs">Medio de Pago / Depósito:</span>
-                  <p className="font-semibold text-slate-800">{selectedReceipt.banco}</p>
-                  <p className="text-slate-600">Ref. Bancaria: {selectedReceipt.referencia_bancaria || 'Depósito Bancario'}</p>
+                  <span className="text-slate-400 dark:text-slate-500 uppercase font-semibold text-2xs">Medio de Pago / Depósito:</span>
+                  <p className="font-semibold text-slate-800 dark:text-slate-200">{selectedReceipt.banco}</p>
+                  <p className="text-slate-600 dark:text-slate-400">Ref. Bancaria: {selectedReceipt.referencia_bancaria || 'Depósito Bancario'}</p>
                 </div>
               </div>
 
@@ -417,7 +417,7 @@ export const AccountingView: React.FC = () => {
               <div>
                 <table className="w-full text-xs text-left">
                   <thead>
-                    <tr className="border-b border-slate-300 text-slate-500 uppercase font-semibold">
+                    <tr className="border-b border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 uppercase font-semibold">
                       <th className="py-2">Concepto / Comprobante</th>
                       <th className="py-2 text-right">Monto Aplicado</th>
                       <th className="py-2 text-right">Saldo Restante</th>
@@ -426,24 +426,24 @@ export const AccountingView: React.FC = () => {
                   <tbody className="divide-y divide-slate-200">
                     {selectedReceipt.facturas_canceladas.map((item, idx) => (
                       <tr key={idx}>
-                        <td className="py-2.5 font-medium text-slate-800">
-                          Cancelación Factura <span className="font-mono font-bold text-slate-900">{item.factura_numero}</span>
+                        <td className="py-2.5 font-medium text-slate-800 dark:text-slate-200">
+                          Cancelación Factura <span className="font-mono font-bold text-slate-900 dark:text-white">{item.factura_numero}</span>
                         </td>
-                        <td className="py-2.5 text-right font-mono font-semibold text-slate-900">
+                        <td className="py-2.5 text-right font-mono font-semibold text-slate-900 dark:text-white">
                           {selectedReceipt.moneda === 'USD' ? 'US$' : '$'}{item.monto_aplicado.toLocaleString()}
                         </td>
-                        <td className="py-2.5 text-right font-mono text-slate-500">
+                        <td className="py-2.5 text-right font-mono text-slate-500 dark:text-slate-400">
                           {selectedReceipt.moneda === 'USD' ? 'US$' : '$'}{item.saldo_restante.toLocaleString()}
                         </td>
                       </tr>
                     ))}
                     {selectedReceipt.retencion_fiscal > 0 && (
                       <tr>
-                        <td className="py-2 text-amber-800 font-medium">Retención Fiscal DGI / IVA / IRAE deducida</td>
-                        <td className="py-2 text-right font-mono font-semibold text-amber-800">
+                        <td className="py-2 text-amber-800 dark:text-amber-300 font-medium">Retención Fiscal DGI / IVA / IRAE deducida</td>
+                        <td className="py-2 text-right font-mono font-semibold text-amber-800 dark:text-amber-300">
                           {selectedReceipt.moneda === 'USD' ? 'US$' : '$'}{selectedReceipt.retencion_fiscal.toLocaleString()}
                         </td>
-                        <td className="py-2 text-right font-mono text-slate-400">-</td>
+                        <td className="py-2 text-right font-mono text-slate-400 dark:text-slate-500">-</td>
                       </tr>
                     )}
                     {selectedReceipt.saldo_a_favor_generado > 0 && (
@@ -452,14 +452,14 @@ export const AccountingView: React.FC = () => {
                         <td className="py-2 text-right font-mono font-semibold text-blue-800">
                           {selectedReceipt.moneda === 'USD' ? 'US$' : '$'}{selectedReceipt.saldo_a_favor_generado.toLocaleString()}
                         </td>
-                        <td className="py-2 text-right font-mono text-slate-400">-</td>
+                        <td className="py-2 text-right font-mono text-slate-400 dark:text-slate-500">-</td>
                       </tr>
                     )}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-slate-900 font-bold text-sm">
-                      <td className="py-3 text-slate-900">TOTAL PERCIBIDO:</td>
-                      <td className="py-3 text-right font-mono text-slate-900">
+                      <td className="py-3 text-slate-900 dark:text-white">TOTAL PERCIBIDO:</td>
+                      <td className="py-3 text-right font-mono text-slate-900 dark:text-white">
                         {selectedReceipt.moneda === 'USD' ? 'US$' : '$'}{selectedReceipt.monto_total_cobrado.toLocaleString()} {selectedReceipt.moneda}
                       </td>
                       <td></td>
@@ -469,27 +469,27 @@ export const AccountingView: React.FC = () => {
               </div>
 
               {/* Signatures */}
-              <div className="pt-8 grid grid-cols-2 gap-8 text-center text-xs text-slate-500">
+              <div className="pt-8 grid grid-cols-2 gap-8 text-center text-xs text-slate-500 dark:text-slate-400">
                 <div>
-                  <div className="border-t border-slate-300 w-3/4 mx-auto pt-2">
-                    <p className="font-semibold text-slate-700">Por {company.name}</p>
-                    <p className="text-2xs text-slate-400">Departamento de Tesorería & Cobranzas</p>
+                  <div className="border-t border-slate-300 dark:border-slate-600 w-3/4 mx-auto pt-2">
+                    <p className="font-semibold text-slate-700 dark:text-slate-300">Por {company.name}</p>
+                    <p className="text-2xs text-slate-400 dark:text-slate-500">Departamento de Tesorería & Cobranzas</p>
                   </div>
                 </div>
                 <div>
-                  <div className="border-t border-slate-300 w-3/4 mx-auto pt-2">
-                    <p className="font-semibold text-slate-700">Recibido Conforme</p>
-                    <p className="text-2xs text-slate-400">Cliente / Pagador</p>
+                  <div className="border-t border-slate-300 dark:border-slate-600 w-3/4 mx-auto pt-2">
+                    <p className="font-semibold text-slate-700 dark:text-slate-300">Recibido Conforme</p>
+                    <p className="text-2xs text-slate-400 dark:text-slate-500">Cliente / Pagador</p>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end space-x-3">
+            <div className="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex justify-end space-x-3">
               <button
                 onClick={() => setSelectedReceipt(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-lg shadow-xs"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xs"
               >
                 Cerrar
               </button>

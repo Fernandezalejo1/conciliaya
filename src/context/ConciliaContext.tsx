@@ -19,7 +19,7 @@ import {
   initialInvoices,
   initialLearnedAliases
 } from '../data/mockData';
-import { matchBankMovement } from '../utils/matchingEngine';
+import { matchBankMovement, runFIFOAllocation } from '../utils/matchingEngine';
 
 interface ConciliaContextType {
   company: Company;
@@ -167,30 +167,56 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cli = overrideClients || clients;
     const aliases = overrideAliases || learnedAliases;
 
+    // Use FIFO allocation: group movements by client, allocate chronologically
+    const fifoResults = runFIFOAllocation(
+      bankMovements,
+      inv,
+      cli,
+      aliases,
+      company.autoMatchThreshold,
+      company.usdExchangeRate
+    );
+
     setBankMovements(prevMovements => {
       return prevMovements.map(mov => {
         if (mov.estado_conciliacion === 'conciliado_manual') {
           return mov;
         }
 
-        const suggestion = matchBankMovement(
-          mov,
-          inv,
-          cli,
-          aliases,
-          company.autoMatchThreshold,
-          company.usdExchangeRate
-        );
+        const suggestion = fifoResults.get(mov.id);
 
         if (!suggestion) {
+          // Fall back to per-movement matching for unmatched FIFO results
+          const fallbackSuggestion = matchBankMovement(
+            mov,
+            inv,
+            cli,
+            aliases,
+            company.autoMatchThreshold,
+            company.usdExchangeRate
+          );
+
+          if (!fallbackSuggestion) {
+            return {
+              ...mov,
+              estado_conciliacion: 'sin_identificar',
+              confianza: 0,
+              motivo_sugerencia: 'Sin referencia reconocible en extracto bancario. Requiere revisión manual o análisis con IA.',
+              sugerencia: undefined,
+              cliente_sugerido_id: undefined,
+              cliente_sugerido_name: undefined
+            };
+          }
+
+          const isAuto = fallbackSuggestion.confianza >= (company.autoMatchThreshold * 100);
           return {
             ...mov,
-            estado_conciliacion: 'sin_identificar',
-            confianza: 0,
-            motivo_sugerencia: 'Sin referencia reconocible en extracto bancario. Requiere revisión manual o análisis con IA.',
-            sugerencia: undefined,
-            cliente_sugerido_id: undefined,
-            cliente_sugerido_name: undefined
+            estado_conciliacion: isAuto ? 'auto' : 'sugerido',
+            confianza: fallbackSuggestion.confianza,
+            motivo_sugerencia: fallbackSuggestion.motivo,
+            cliente_sugerido_id: fallbackSuggestion.cliente_id,
+            cliente_sugerido_name: fallbackSuggestion.cliente_nombre,
+            sugerencia: fallbackSuggestion
           };
         }
 
@@ -1000,11 +1026,28 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const importInvoices = (newInvoices: Invoice[]) => {
-    const updatedInvoices = [...newInvoices, ...invoices];
+    // Merge duplicate invoices: same number = same invoice, sum amounts
+    const merged = new Map<string, Invoice>();
+    for (const inv of newInvoices) {
+      const existing = merged.get(inv.numero);
+      if (existing) {
+        merged.set(inv.numero, {
+          ...existing,
+          importe: existing.importe + inv.importe,
+          monto_con_iva: (existing.monto_con_iva || existing.importe) + (inv.monto_con_iva || inv.importe),
+          saldo_pendiente: existing.saldo_pendiente + inv.saldo_pendiente
+        });
+      } else {
+        merged.set(inv.numero, { ...inv });
+      }
+    }
+    const deduplicated = Array.from(merged.values());
+
+    const updatedInvoices = [...deduplicated, ...invoices];
     setInvoices(updatedInvoices);
 
     const updatedClients = [...clients];
-    for (const inv of newInvoices) {
+    for (const inv of deduplicated) {
       const idx = updatedClients.findIndex(c => c.id === inv.cliente_id || c.name.toLowerCase() === inv.cliente_nombre.toLowerCase());
       const altNames = (inv.cliente_nombre_alt || []).map(n => n.toUpperCase());
       if (idx === -1) {

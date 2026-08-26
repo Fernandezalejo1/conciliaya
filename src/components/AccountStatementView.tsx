@@ -250,9 +250,9 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
     <div className="space-y-6">
       {/* Toast Notification */}
       {notificationMsg && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs">
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-400 px-4 py-3 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs">
           <div className="flex items-center space-x-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span>{notificationMsg}</span>
           </div>
           <button onClick={() => setNotificationMsg(null)} className="text-emerald-500 hover:text-emerald-700">
@@ -262,10 +262,10 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
       )}
 
       {/* Top Header & Client Selector */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Estado de Cuenta / Cuenta Corriente</h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Estado de Cuenta / Cuenta Corriente</h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             Historial contable de débitos, cobranzas, saldos vencidos y emisión de avisos por correo electrónico.
           </p>
         </div>
@@ -273,11 +273,11 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
         {/* Client Picker & Actions */}
         <div className="flex items-center space-x-3 w-full md:w-auto">
           <div className="relative w-full md:w-72">
-            <Users className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <Users className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
             <select
               value={selectedClientId}
               onChange={(e) => setSelectedClientId(e.target.value)}
-              className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
+              className="w-full pl-9 pr-8 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer"
             >
               {clients
                 .filter(c =>
@@ -292,17 +292,17 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                   </option>
                 ))}
             </select>
-            <ChevronDown className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <ChevronDown className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
           </div>
 
           <div className="relative w-full md:w-56">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
               placeholder="Filtrar clientes..."
               value={clientSearchTerm}
               onChange={(e) => setClientSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-600 rounded-xl text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -316,9 +316,9 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
 
           <button
             onClick={handleExportCSV}
-            className="px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 shrink-0"
+            className="px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl shadow-xs transition-colors flex items-center space-x-1.5 shrink-0"
           >
-            <Download className="h-3.5 w-3.5 text-slate-500" />
+            <Download className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
             <span>CSV</span>
           </button>
         </div>
@@ -327,28 +327,28 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
       {selectedClient && (
         <>
           {/* Client Financial Summary Card */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-5">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700 shadow-xs space-y-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-700">
               <div className="space-y-1">
                 <div className="flex items-center space-x-3">
-                  <h3 className="text-xl font-bold text-slate-900">{selectedClient.name}</h3>
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">{selectedClient.name}</h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                     RUT/CI: {selectedClient.rut_ci}
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1">
+                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 dark:text-slate-400 pt-1">
                   {selectedClient.contactPerson && (
-                    <span>Contacto: <strong className="text-slate-700">{selectedClient.contactPerson}</strong></span>
+                    <span>Contacto: <strong className="text-slate-700 dark:text-slate-300">{selectedClient.contactPerson}</strong></span>
                   )}
                   {selectedClient.email && (
                     <span className="flex items-center space-x-1">
-                      <Mail className="h-3 w-3 text-slate-400" />
+                      <Mail className="h-3 w-3 text-slate-400 dark:text-slate-500" />
                       <span className="text-blue-600 font-medium">{selectedClient.email}</span>
                     </span>
                   )}
                   {selectedClient.phone && (
                     <span className="flex items-center space-x-1">
-                      <Phone className="h-3 w-3 text-slate-400" />
+                      <Phone className="h-3 w-3 text-slate-400 dark:text-slate-500" />
                       <span>{selectedClient.phone}</span>
                     </span>
                   )}
@@ -379,28 +379,28 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
 
             {/* 4 Financial KPIs for this client */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase">Total Facturado Histórico</span>
-                <div className="text-lg font-bold text-slate-900 mt-1">
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200/60 dark:border-slate-700">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Facturado Histórico</span>
+                <div className="text-lg font-bold text-slate-900 dark:text-white mt-1">
                   {company.currencySymbol} {selectedClient.totalInvoiced.toLocaleString('es-UY')}
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase">Total Cobrado / Pagado</span>
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200/60 dark:border-slate-700">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Total Cobrado / Pagado</span>
                 <div className="text-lg font-bold text-emerald-600 mt-1">
                   {company.currencySymbol} {selectedClient.totalPaid.toLocaleString('es-UY')}
                 </div>
               </div>
 
-              <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-200/60">
+              <div className="bg-blue-50/60 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200/60 dark:border-blue-800">
                 <span className="text-[11px] font-semibold text-blue-700 uppercase">Saldo Deudor Pendiente</span>
                 <div className="text-xl font-extrabold text-blue-900 mt-1">
                   {company.currencySymbol} {selectedClient.currentBalance.toLocaleString('es-UY')}
                 </div>
               </div>
 
-              <div className="bg-purple-50/60 p-4 rounded-xl border border-purple-200/60">
+              <div className="bg-purple-50/60 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-200/60 dark:border-purple-800">
                 <span className="text-[11px] font-semibold text-purple-700 uppercase">Saldo a Favor Activo</span>
                 <div className="text-xl font-extrabold text-purple-900 mt-1">
                   {company.currencySymbol} {totalAvailableCredit.toLocaleString('es-UY')}
@@ -410,30 +410,30 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
 
             {/* Aging Report Breakdown for this client */}
             {selectedClient.currentBalance > 0 && (
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-                <p className="text-xs font-bold text-slate-700 uppercase mb-2 flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5 text-slate-500" />
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700">
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
                   Antigüedad de Deuda (Aging Report)
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-                  <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                    <span className="text-2xs text-slate-400 block font-semibold">Al Día (Sin Vencer)</span>
+                  <div className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <span className="text-2xs text-slate-400 dark:text-slate-500 block font-semibold">Al Día (Sin Vencer)</span>
                     <span className="font-bold text-emerald-700 text-sm">{company.currencySymbol}{aging.al_dia.toLocaleString()}</span>
                   </div>
-                  <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                    <span className="text-2xs text-slate-400 block font-semibold">1 a 30 Días</span>
+                  <div className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <span className="text-2xs text-slate-400 dark:text-slate-500 block font-semibold">1 a 30 Días</span>
                     <span className="font-bold text-amber-600 text-sm">{company.currencySymbol}{aging.dias_1_30.toLocaleString()}</span>
                   </div>
-                  <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                    <span className="text-2xs text-slate-400 block font-semibold">31 a 60 Días</span>
+                  <div className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <span className="text-2xs text-slate-400 dark:text-slate-500 block font-semibold">31 a 60 Días</span>
                     <span className="font-bold text-orange-600 text-sm">{company.currencySymbol}{aging.dias_31_60.toLocaleString()}</span>
                   </div>
-                  <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                    <span className="text-2xs text-slate-400 block font-semibold">61 a 90 Días</span>
+                  <div className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <span className="text-2xs text-slate-400 dark:text-slate-500 block font-semibold">61 a 90 Días</span>
                     <span className="font-bold text-red-600 text-sm">{company.currencySymbol}{aging.dias_61_90.toLocaleString()}</span>
                   </div>
-                  <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-                    <span className="text-2xs text-slate-400 block font-semibold">&gt; 90 Días Vencido</span>
+                  <div className="bg-white dark:bg-slate-800 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <span className="text-2xs text-slate-400 dark:text-slate-500 block font-semibold">&gt; 90 Días Vencido</span>
                     <span className="font-bold text-red-800 text-sm">{company.currencySymbol}{aging.mas_90_dias.toLocaleString()}</span>
                   </div>
                 </div>
@@ -443,13 +443,13 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
 
           {/* Sub-tabs: Cuenta Corriente (Ledger) vs Facturas Pendientes vs Correos */}
           <div className="space-y-4">
-            <div className="flex items-center space-x-2 border-b border-slate-200 overflow-x-auto">
+            <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
               <button
                 onClick={() => setActiveTab('ledger')}
                 className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap ${
                   activeTab === 'ledger'
                     ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-900'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Libro Mayor de Cuenta Corriente ({ledger.length})
@@ -460,7 +460,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                 className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap ${
                   activeTab === 'pending_invoices'
                     ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-900'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Facturas Pendientes ({pendingInvoices.length})
@@ -471,7 +471,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                 className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap ${
                   activeTab === 'paid_invoices'
                     ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-900'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Facturas Canceladas ({paidInvoices.length})
@@ -482,7 +482,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                 className={`pb-2.5 px-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap ${
                   activeTab === 'email_logs'
                     ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-900'
+                    : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 Historial de Correos ({clientEmailLogs.length})
@@ -491,33 +491,33 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
 
             {/* TAB 1: LEDGER */}
             {activeTab === 'ledger' && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-bold border-b border-slate-200">
+                    <thead className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 uppercase text-[10px] font-bold border-b border-slate-200 dark:border-slate-700">
                       <tr>
                         <th className="px-4 py-3">Fecha</th>
                         <th className="px-4 py-3">Concepto / Detalle</th>
                         <th className="px-4 py-3">Documento</th>
-                        <th className="px-4 py-3 text-right text-slate-900">Débito (+)</th>
+                        <th className="px-4 py-3 text-right text-slate-900 dark:text-white">Débito (+)</th>
                         <th className="px-4 py-3 text-right text-emerald-700">Crédito (-)</th>
                         <th className="px-4 py-3 text-right text-blue-800">Saldo Acumulado</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                       {ledger.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                          <td colSpan={6} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
                             No hay movimientos registrados para este cliente.
                           </td>
                         </tr>
                       ) : (
                         ledger.map((row, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/70 transition-colors">
-                            <td className="px-4 py-3 text-slate-600 font-medium">{row.fecha}</td>
-                            <td className="px-4 py-3 font-semibold text-slate-900">{row.concepto}</td>
+                          <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-700/50 transition-colors">
+                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400 font-medium">{row.fecha}</td>
+                            <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">{row.concepto}</td>
                             <td className="px-4 py-3 font-mono font-bold text-blue-700">{row.documento}</td>
-                            <td className="px-4 py-3 text-right font-medium text-slate-900">
+                            <td className="px-4 py-3 text-right font-medium text-slate-900 dark:text-white">
                               {row.debito > 0 ? `${company.currencySymbol} ${row.debito.toLocaleString('es-UY')}` : '-'}
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-emerald-600">
@@ -537,10 +537,10 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
 
             {/* TAB 2: PENDING INVOICES */}
             {activeTab === 'pending_invoices' && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-bold border-b border-slate-200">
+                    <thead className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 uppercase text-[10px] font-bold border-b border-slate-200 dark:border-slate-700">
                       <tr>
                         <th className="px-4 py-3">Factura N°</th>
                         <th className="px-4 py-3">Fecha Emisión</th>
@@ -551,21 +551,21 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                         <th className="px-4 py-3 text-right">Acción</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                       {pendingInvoices.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                          <td colSpan={7} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
                             ¡Sin facturas pendientes! El cliente está al día.
                           </td>
                         </tr>
                       ) : (
                         pendingInvoices.map((inv) => (
-                          <tr key={inv.id} className="hover:bg-slate-50">
+                          <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                             <td className="px-4 py-3 font-mono font-bold text-blue-700">{inv.numero}</td>
-                            <td className="px-4 py-3 text-slate-600">{inv.fecha}</td>
-                            <td className="px-4 py-3 text-slate-600">{inv.vencimiento}</td>
-                            <td className="px-4 py-3 font-bold text-slate-700">{inv.moneda || 'UYU'}</td>
-                            <td className="px-4 py-3 text-right text-slate-600">
+                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{inv.fecha}</td>
+                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{inv.vencimiento}</td>
+                            <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">{inv.moneda || 'UYU'}</td>
+                            <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">
                               {inv.moneda === 'USD' ? 'US$' : '$'} {inv.importe.toLocaleString('es-UY')}
                             </td>
                             <td className="px-4 py-3 text-right font-extrabold text-blue-900">
@@ -580,7 +580,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                                   Aplicar Crédito
                                 </button>
                               ) : (
-                                <span className="text-[11px] text-slate-400 italic">Esperando pago</span>
+                                <span className="text-[11px] text-slate-400 dark:text-slate-500 italic">Esperando pago</span>
                               )}
                             </td>
                           </tr>
@@ -594,10 +594,10 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
 
             {/* TAB 3: PAID INVOICES */}
             {activeTab === 'paid_invoices' && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-bold border-b border-slate-200">
+                    <thead className="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 uppercase text-[10px] font-bold border-b border-slate-200 dark:border-slate-700">
                       <tr>
                         <th className="px-4 py-3">Factura N°</th>
                         <th className="px-4 py-3">Fecha Emisión</th>
@@ -606,20 +606,20 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                         <th className="px-4 py-3 text-right">Estado</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                       {paidInvoices.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                          <td colSpan={5} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
                             Aún no hay facturas totalmente canceladas en este período.
                           </td>
                         </tr>
                       ) : (
                         paidInvoices.map((inv) => (
-                          <tr key={inv.id} className="hover:bg-slate-50">
+                          <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                             <td className="px-4 py-3 font-mono font-bold text-blue-700">{inv.numero}</td>
-                            <td className="px-4 py-3 text-slate-600">{inv.fecha}</td>
-                            <td className="px-4 py-3 font-bold text-slate-700">{inv.moneda || 'UYU'}</td>
-                            <td className="px-4 py-3 text-right font-semibold text-slate-800">
+                            <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{inv.fecha}</td>
+                            <td className="px-4 py-3 font-bold text-slate-700 dark:text-slate-300">{inv.moneda || 'UYU'}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">
                               {inv.moneda === 'USD' ? 'US$' : '$'} {inv.importe.toLocaleString('es-UY')}
                             </td>
                             <td className="px-4 py-3 text-right">
@@ -638,12 +638,12 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
 
             {/* TAB 4: EMAIL LOGS */}
             {activeTab === 'email_logs' && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs p-5 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-slate-900">Historial de Notificaciones por Email</h4>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Historial de Notificaciones por Email</h4>
                   <button
                     onClick={handleOpenEmailModal}
-                    className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold rounded-lg text-xs transition-colors"
+                    className="inline-flex items-center px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 hover:bg-blue-100 font-semibold rounded-lg text-xs transition-colors"
                   >
                     <Mail className="h-3.5 w-3.5 mr-1" />
                     Enviar Nuevo Email
@@ -651,21 +651,21 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                 </div>
 
                 {clientEmailLogs.length === 0 ? (
-                  <div className="text-center py-8 text-slate-400 text-xs">
+                  <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-xs">
                     No se han enviado recordatorios por correo a este cliente aún.
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {clientEmailLogs.map(log => (
-                      <div key={log.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                      <div key={log.id} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-slate-900">{log.asunto}</span>
-                          <span className="text-slate-400 text-2xs">{new Date(log.fecha_envio).toLocaleString('es-UY')}</span>
+                          <span className="font-semibold text-slate-900 dark:text-white">{log.asunto}</span>
+                          <span className="text-slate-400 dark:text-slate-500 text-2xs">{new Date(log.fecha_envio).toLocaleString('es-UY')}</span>
                         </div>
-                        <p className="text-slate-600">
-                          Destinatario: <strong className="text-slate-800">{log.destinatario_email}</strong> • Saldo informado: <strong className="text-blue-700">${log.saldo_reclamado.toLocaleString()}</strong>
+                        <p className="text-slate-600 dark:text-slate-400">
+                          Destinatario: <strong className="text-slate-800 dark:text-slate-200">{log.destinatario_email}</strong> • Saldo informado: <strong className="text-blue-700">${log.saldo_reclamado.toLocaleString()}</strong>
                         </p>
-                        <p className="text-slate-500 text-2xs">
+                        <p className="text-slate-500 dark:text-slate-400 text-2xs">
                           Facturas incluidas: {log.facturas_incluidas.join(', ') || 'Todas'} • Enviado por: {log.enviado_por}
                         </p>
                       </div>
@@ -679,13 +679,13 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
       )}
 
       {/* Bottom Client Navigation */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-700 shadow-xs">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-slate-600 uppercase whitespace-nowrap">Ir a Cliente:</span>
+          <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase whitespace-nowrap">Ir a Cliente:</span>
           <select
             value={selectedClientId}
             onChange={(e) => setSelectedClientId(e.target.value)}
-            className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="flex-1 px-3 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
           >
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -705,7 +705,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                   px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all border
                   ${isSelected
                     ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20'
                   }
                 `}
               >
@@ -724,7 +724,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
       {/* Email Modal */}
       {isEmailModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
             <div className="bg-blue-600 text-white px-6 py-4 flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Mail className="h-5 w-5" />
@@ -740,36 +740,36 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
 
             <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Destinatario (Email):</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Destinatario (Email):</label>
                 <input
                   type="email"
                   value={emailRecipient}
                   onChange={(e) => setEmailRecipient(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-blue-500 font-medium"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 font-medium"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Asunto:</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Asunto:</label>
                 <input
                   type="text"
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-blue-500 font-medium"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 font-medium"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Cuerpo del Correo (Editable):</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Cuerpo del Correo (Editable):</label>
                 <textarea
                   rows={12}
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
-                  className="w-full p-3 font-mono text-xs border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500 leading-relaxed"
+                  className="w-full p-3 font-mono text-xs border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 leading-relaxed"
                 />
               </div>
 
-              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 text-blue-800 text-2xs flex items-start space-x-2">
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800 text-blue-800 text-2xs flex items-start space-x-2">
                 <AlertCircle className="h-4 w-4 shrink-0 text-blue-600 mt-0.5" />
                 <p>
                   El sistema generará el correo y guardará constancia en el historial de auditoría de cuentas por cobrar. Puedes copiar el texto o disparar el envío automático.
@@ -777,19 +777,19 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
               </div>
             </div>
 
-            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+            <div className="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
               <button
                 onClick={handleCopyEmail}
-                className="inline-flex items-center px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold rounded-lg shadow-xs transition-colors"
+                className="inline-flex items-center px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300 font-semibold rounded-lg shadow-xs transition-colors"
               >
-                <Copy className="h-4 w-4 mr-1.5 text-slate-500" />
+                <Copy className="h-4 w-4 mr-1.5 text-slate-500 dark:text-slate-400" />
                 {emailCopied ? '¡Copiado!' : 'Copiar Texto'}
               </button>
 
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setIsEmailModalOpen(false)}
-                  className="px-4 py-2 text-slate-600 font-semibold hover:text-slate-800"
+                  className="px-4 py-2 text-slate-600 dark:text-slate-400 font-semibold hover:text-slate-800 dark:hover:text-white"
                 >
                   Cancelar
                 </button>
