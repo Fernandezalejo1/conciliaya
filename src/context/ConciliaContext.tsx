@@ -181,6 +181,12 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       company.usdExchangeRate
     );
 
+    // Shared余额 tracking for fallback calls — ensures same invoice isn't over-applied
+    const sharedRemaining = new Map<string, number>();
+    for (const invoice of inv) {
+      sharedRemaining.set(invoice.id, invoice.saldo_pendiente);
+    }
+
     setBankMovements(prevMovements => {
       return prevMovements.map(mov => {
         if (mov.estado_conciliacion === 'conciliado_manual') {
@@ -197,7 +203,8 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             cli,
             aliases,
             company.autoMatchThreshold,
-            company.usdExchangeRate
+            company.usdExchangeRate,
+            sharedRemaining
           );
 
           if (!fallbackSuggestion) {

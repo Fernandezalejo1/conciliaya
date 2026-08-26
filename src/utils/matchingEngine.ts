@@ -282,14 +282,8 @@ export function extractInvoiceTokens(text: string): string[] {
     }
   }
 
-  // Pattern 3: Slash reference patterns from bank descriptions (e.g. "/4096546", "/35")
-  const slashMatches = norm.match(/\/(\d{2,10})\b/g) || [];
-  for (const m of slashMatches) {
-    const num = m.replace(/[^0-9]/g, '');
-    if (num && num.length >= 2) {
-      results.add(num);
-    }
-  }
+  // Pattern 3: REMOVED — slash-references like "/35", "/4096546" are bank client codes,
+  // NOT invoice numbers. They cause cross-client false matches (e.g., "/35" → A135).
 
   return Array.from(results);
 }
@@ -347,7 +341,8 @@ export function matchBankMovement(
   clients: Client[],
   learnedAliases: LearnedAlias[],
   autoThreshold: number = 0.90,
-  usdExchangeRate: number = 40.50
+  usdExchangeRate: number = 40.50,
+  invoiceRemaining?: Map<string, number>
 ): SuggestedMatch | null {
   const rawDesc = movement.descripcion_cruda;
   const cleanDesc = stripBankNoise(rawDesc);
@@ -355,11 +350,27 @@ export function matchBankMovement(
   const amount = movement.monto;
   const movCurrency = movement.moneda || 'UYU';
 
+  // Helper: get effective remaining balance for an invoice (uses shared tracking map when available)
+  const getRemaining = (inv: Invoice): number => {
+    if (invoiceRemaining && invoiceRemaining.has(inv.id)) {
+      return invoiceRemaining.get(inv.id)!;
+    }
+    return inv.saldo_pendiente;
+  };
+
+  // Helper: after allocating to an invoice, update the shared tracking map
+  const consumeRemaining = (invId: string, amountApplied: number) => {
+    if (invoiceRemaining) {
+      const prev = invoiceRemaining.get(invId) ?? 0;
+      invoiceRemaining.set(invId, Math.max(0, prev - amountApplied));
+    }
+  };
+
   // PRE-PASS: Check if this movement exactly matches an already-paid invoice.
   // If so, mark as "ya_conciliado" — don't create new payments.
   for (const inv of pendingInvoices) {
     const invTotal = (inv.monto_con_iva || inv.importe);
-    if (Math.abs(amount - invTotal) < 0.01 && (inv.estado === 'pagada' || inv.saldo_pendiente <= 0.01)) {
+    if (Math.abs(amount - invTotal) < 0.01 && (inv.estado === 'pagada' || getRemaining(inv) <= 0.01)) {
       // Find the client for this invoice
       const client = clients.find(c => c.id === inv.cliente_id) || null;
       return {
@@ -373,7 +384,7 @@ export function matchBankMovement(
     }
   }
 
-  const openInvoices = pendingInvoices.filter(i => i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada');
+  const openInvoices = pendingInvoices.filter(i => getRemaining(i) > 0 && i.estado !== 'pagada' && i.estado !== 'anulada');
 
   // =========================================================================
   // PASO 1 — Alias Aprendidos
@@ -414,70 +425,49 @@ export function matchBankMovement(
       const invNum = inv.numero.replace(/[^0-9]/g, '');
       const hasToken = extractedTokens.some(token => {
         const tokenNum = token.replace(/[^0-9]/g, '');
-        return tokenNum === invNum || inv.numero.toUpperCase().includes(token.toUpperCase());
+        // Only exact numeric match — never substring (.includes()) across clients.
+        // "/35" extracting "35" must NOT match invoice "A135" (different client).
+        return tokenNum === invNum;
       });
 
       if (hasToken) {
         const invCurrency = inv.moneda || 'UYU';
         
-        // Multi-currency calculation — compare against monto_con_iva (consumidor final)
-        const invTotal = inv.monto_con_iva || inv.importe;
-        let effectiveInvSaldo = invTotal;
+        // Use remaining balance (tracks cross-movement allocations) instead of full monto_con_iva
+        const remaining = getRemaining(inv);
+        let effectiveInvSaldo = remaining;
         let isBimonetary = false;
         if (movCurrency === 'UYU' && invCurrency === 'USD') {
-          effectiveInvSaldo = invTotal * usdExchangeRate;
+          effectiveInvSaldo = remaining * usdExchangeRate;
           isBimonetary = true;
         } else if (movCurrency === 'USD' && invCurrency === 'UYU') {
-          effectiveInvSaldo = invTotal / usdExchangeRate;
+          effectiveInvSaldo = remaining / usdExchangeRate;
           isBimonetary = true;
         }
 
         const isExactAmount = Math.abs(effectiveInvSaldo - amount) < 1;
-        const diff = effectiveInvSaldo - amount;
-        
-        // Check for tax withholding (1%, 2%, 3% standard tax retention)
-        const isWithholding1pct = Math.abs(diff - (effectiveInvSaldo * 0.01)) < 5;
-        const isWithholding2pct = Math.abs(diff - (effectiveInvSaldo * 0.02)) < 5;
-        const isWithholding3pct = Math.abs(diff - (effectiveInvSaldo * 0.03)) < 5;
-        const hasWithholding = (isWithholding1pct || isWithholding2pct || isWithholding3pct || (diff > 0 && diff <= 1000 && normDesc.includes('RET')));
 
         if (isExactAmount) {
+          consumeRemaining(inv.id, remaining);
           return {
             cliente_id: inv.cliente_id,
             cliente_nombre: inv.cliente_nombre,
             confianza: isBimonetary ? 95 : 100,
             motivo: isBimonetary
-              ? `Pago bimonetario exacto por N° Factura (${inv.numero} USD $${inv.saldo_pendiente.toLocaleString()} × TC $${usdExchangeRate} = $${amount.toLocaleString()} UYU)`
+              ? `Pago bimonetario exacto por N° Factura (${inv.numero} USD $${remaining.toLocaleString()} × TC $${usdExchangeRate} = $${amount.toLocaleString()} UYU)`
               : `Match exacto por N° Factura (${inv.numero}) e importe idéntico`,
             tipo: isBimonetary ? 'bimonetario' : 'exacto_factura',
             facturas: [{
               factura_id: inv.id,
               factura_numero: inv.numero,
               importe: inv.importe,
-              saldo_pendiente: inv.saldo_pendiente,
-              monto_a_aplicar: inv.saldo_pendiente,
+              saldo_pendiente: remaining,
+              monto_a_aplicar: remaining,
               moneda: inv.moneda
             }]
           };
-        } else if (hasWithholding) {
-          const retAmount = diff;
-          return {
-            cliente_id: inv.cliente_id,
-            cliente_nombre: inv.cliente_nombre,
-            confianza: 92,
-            motivo: `Factura ${inv.numero} (${inv.saldo_pendiente.toLocaleString()}) con retención fiscal estimada de $${Math.round(retAmount).toLocaleString()}`,
-            tipo: 'retencion_o_gasto',
-            facturas: [{
-              factura_id: inv.id,
-              factura_numero: inv.numero,
-              importe: inv.importe,
-              saldo_pendiente: inv.saldo_pendiente,
-              monto_a_aplicar: inv.saldo_pendiente,
-              moneda: inv.moneda
-            }],
-            retencion_estimada: Math.round(retAmount)
-          };
         } else if (amount < effectiveInvSaldo) {
+          consumeRemaining(inv.id, amount);
           return {
             cliente_id: inv.cliente_id,
             cliente_nombre: inv.cliente_nombre,
@@ -488,13 +478,14 @@ export function matchBankMovement(
               factura_id: inv.id,
               factura_numero: inv.numero,
               importe: inv.importe,
-              saldo_pendiente: inv.saldo_pendiente,
+              saldo_pendiente: remaining,
               monto_a_aplicar: isBimonetary ? (amount / usdExchangeRate) : amount,
               moneda: inv.moneda
             }]
           };
         } else if (amount > effectiveInvSaldo) {
           const excess = amount - effectiveInvSaldo;
+          consumeRemaining(inv.id, remaining);
           return {
             cliente_id: inv.cliente_id,
             cliente_nombre: inv.cliente_nombre,
@@ -505,8 +496,8 @@ export function matchBankMovement(
               factura_id: inv.id,
               factura_numero: inv.numero,
               importe: inv.importe,
-              saldo_pendiente: inv.saldo_pendiente,
-              monto_a_aplicar: inv.saldo_pendiente,
+              saldo_pendiente: remaining,
+              monto_a_aplicar: remaining,
               moneda: inv.moneda
             }],
             saldo_a_favor_estimado: excess
@@ -522,11 +513,12 @@ export function matchBankMovement(
     
     // Check exact invoice — compare against monto_con_iva (consumidor final)
     for (const inv of clientInvoices) {
-      const invTotal = inv.monto_con_iva || inv.importe;
-      let invAmount = invTotal;
-      if (movCurrency === 'UYU' && inv.moneda === 'USD') invAmount = invTotal * usdExchangeRate;
+      const remaining = getRemaining(inv);
+      let invAmount = remaining;
+      if (movCurrency === 'UYU' && inv.moneda === 'USD') invAmount = remaining * usdExchangeRate;
       
       if (Math.abs(invAmount - amount) < 1) {
+        consumeRemaining(inv.id, remaining);
         return {
           cliente_id: candidateClient.id,
           cliente_nombre: candidateClient.name,
@@ -537,31 +529,10 @@ export function matchBankMovement(
             factura_id: inv.id,
             factura_numero: inv.numero,
             importe: inv.importe,
-            saldo_pendiente: inv.saldo_pendiente,
-            monto_a_aplicar: inv.saldo_pendiente,
+            saldo_pendiente: remaining,
+            monto_a_aplicar: remaining,
             moneda: inv.moneda
           }]
-        };
-      }
-
-      // Check withholding with alias
-      const diff = invAmount - amount;
-      if (diff > 0 && diff <= (invAmount * 0.05)) {
-        return {
-          cliente_id: candidateClient.id,
-          cliente_nombre: candidateClient.name,
-          confianza: 91,
-          motivo: `Alias confirmado (${matchedAlias?.texto_referencia}) para Factura ${inv.numero} con retención/comisión de $${Math.round(diff).toLocaleString()}`,
-          tipo: 'retencion_o_gasto',
-          facturas: [{
-            factura_id: inv.id,
-            factura_numero: inv.numero,
-            importe: inv.importe,
-            saldo_pendiente: inv.saldo_pendiente,
-            monto_a_aplicar: inv.saldo_pendiente,
-            moneda: inv.moneda
-          }],
-          retencion_estimada: Math.round(diff)
         };
       }
     }
@@ -677,19 +648,20 @@ export function matchBankMovement(
 
     // Exact invoice match for this fuzzy client — compare against monto_con_iva
     for (const exactInvoice of clientInvoices) {
-      const invTotal = exactInvoice.monto_con_iva || exactInvoice.importe;
-      let invAmount = invTotal;
+      const remaining = getRemaining(exactInvoice);
+      let invAmount = remaining;
       let isBimonetary = false;
       if (movCurrency === 'UYU' && exactInvoice.moneda === 'USD') {
-        invAmount = invTotal * usdExchangeRate;
+        invAmount = remaining * usdExchangeRate;
         isBimonetary = true;
       } else if (movCurrency === 'USD' && exactInvoice.moneda === 'UYU') {
-        invAmount = invTotal / usdExchangeRate;
+        invAmount = remaining / usdExchangeRate;
         isBimonetary = true;
       }
 
       if (Math.abs(invAmount - amount) < 1) {
         const confidence = Math.min(96, Math.round(best.score * 100));
+        consumeRemaining(exactInvoice.id, remaining);
         return {
           cliente_id: best.client.id,
           cliente_nombre: best.client.name,
@@ -700,31 +672,10 @@ export function matchBankMovement(
             factura_id: exactInvoice.id,
             factura_numero: exactInvoice.numero,
             importe: exactInvoice.importe,
-            saldo_pendiente: exactInvoice.saldo_pendiente,
-            monto_a_aplicar: exactInvoice.saldo_pendiente,
+            saldo_pendiente: remaining,
+            monto_a_aplicar: remaining,
             moneda: exactInvoice.moneda
           }]
-        };
-      }
-
-      // Check withholding
-      const diff = invAmount - amount;
-      if (diff > 0 && (diff <= invAmount * 0.05 || (diff <= 1000 && normDesc.includes('RET')))) {
-        return {
-          cliente_id: best.client.id,
-          cliente_nombre: best.client.name,
-          confianza: Math.min(92, Math.round(best.score * 94)),
-          motivo: `${best.matchReason}. Factura ${exactInvoice.numero} con retención estimada de $${Math.round(diff).toLocaleString()}`,
-          tipo: 'retencion_o_gasto',
-          facturas: [{
-            factura_id: exactInvoice.id,
-            factura_numero: exactInvoice.numero,
-            importe: exactInvoice.importe,
-            saldo_pendiente: exactInvoice.saldo_pendiente,
-            monto_a_aplicar: exactInvoice.saldo_pendiente,
-            moneda: exactInvoice.moneda
-          }],
-          retencion_estimada: Math.round(diff)
         };
       }
     }
@@ -733,6 +684,7 @@ export function matchBankMovement(
     const combo = findInvoiceCombination(clientInvoices, amount);
     if (combo && combo.length > 1) {
       const confidence = Math.min(92, Math.round(best.score * 95));
+      for (const c of combo) consumeRemaining(c.id, getRemaining(c));
       return {
         cliente_id: best.client.id,
         cliente_nombre: best.client.name,
@@ -743,8 +695,8 @@ export function matchBankMovement(
           factura_id: c.id,
           factura_numero: c.numero,
           importe: c.importe,
-          saldo_pendiente: c.saldo_pendiente,
-          monto_a_aplicar: c.saldo_pendiente,
+          saldo_pendiente: getRemaining(c),
+          monto_a_aplicar: getRemaining(c),
           moneda: c.moneda
         }))
       };
@@ -754,19 +706,21 @@ export function matchBankMovement(
     if (clientInvoices.length > 0) {
       const sortedInvoices = [...clientInvoices].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
       const oldest = sortedInvoices[0];
+      const oldestRemaining = getRemaining(oldest);
 
-      if (amount < oldest.saldo_pendiente) {
+      if (amount < oldestRemaining) {
+        consumeRemaining(oldest.id, amount);
         return {
           cliente_id: best.client.id,
           cliente_nombre: best.client.name,
           confianza: Math.min(85, Math.round(best.score * 90)),
-          motivo: `${best.matchReason}. Sugerido aplicar como pago parcial a Factura más antigua ${oldest.numero} (Saldo: $${oldest.saldo_pendiente.toLocaleString()})`,
+          motivo: `${best.matchReason}. Sugerido aplicar como pago parcial a Factura más antigua ${oldest.numero} (Saldo: $${oldestRemaining.toLocaleString()})`,
           tipo: 'pago_parcial',
           facturas: [{
             factura_id: oldest.id,
             factura_numero: oldest.numero,
             importe: oldest.importe,
-            saldo_pendiente: oldest.saldo_pendiente,
+            saldo_pendiente: oldestRemaining,
             monto_a_aplicar: amount,
             moneda: oldest.moneda
           }]
@@ -777,15 +731,18 @@ export function matchBankMovement(
 
         for (const inv of sortedInvoices) {
           if (remaining <= 0) break;
-          const apply = Math.min(inv.saldo_pendiente, remaining);
+          const invRemain = getRemaining(inv);
+          if (invRemain <= 0) continue;
+          const apply = Math.min(invRemain, remaining);
           allocated.push({
             factura_id: inv.id,
             factura_numero: inv.numero,
             importe: inv.importe,
-            saldo_pendiente: inv.saldo_pendiente,
+            saldo_pendiente: invRemain,
             monto_a_aplicar: apply,
             moneda: inv.moneda
           });
+          consumeRemaining(inv.id, apply);
           remaining -= apply;
         }
 
@@ -820,20 +777,22 @@ export function matchBankMovement(
   if (invoicesWithExactAmount.length === 1) {
     const singleMatch = invoicesWithExactAmount[0];
     const isBimonetary4 = movCurrency !== (singleMatch.moneda || 'UYU');
+    const singleRemaining = getRemaining(singleMatch);
+    consumeRemaining(singleMatch.id, amount);
 
     return {
       cliente_id: singleMatch.cliente_id,
       cliente_nombre: singleMatch.cliente_nombre,
       confianza: 82,
       motivo: isBimonetary4
-        ? `Importe unívoco en cartera ($${amount.toLocaleString()} ${movCurrency}): Coincide bimonetario con Factura ${singleMatch.numero} (${singleMatch.saldo_pendiente.toLocaleString()} ${singleMatch.moneda || 'UYU'}) de ${singleMatch.cliente_nombre}`
+        ? `Importe unívoco en cartera ($${amount.toLocaleString()} ${movCurrency}): Coincide bimonetario con Factura ${singleMatch.numero} (${singleRemaining.toLocaleString()} ${singleMatch.moneda || 'UYU'}) de ${singleMatch.cliente_nombre}`
         : `Importe unívoco en cartera ($${amount.toLocaleString()}): Coincide exactamente con la única factura pendiente por este importe (${singleMatch.numero} de ${singleMatch.cliente_nombre})`,
       tipo: isBimonetary4 ? 'bimonetario' : 'exacto_factura',
       facturas: [{
         factura_id: singleMatch.id,
         factura_numero: singleMatch.numero,
         importe: singleMatch.importe,
-        saldo_pendiente: singleMatch.saldo_pendiente,
+        saldo_pendiente: singleRemaining,
         monto_a_aplicar: amount,
         moneda: singleMatch.moneda
       }]
