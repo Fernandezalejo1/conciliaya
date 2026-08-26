@@ -374,6 +374,14 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const totalDebito = lines.reduce((sum, l) => sum + l.debito, 0);
     const totalCredito = lines.reduce((sum, l) => sum + l.credito, 0);
 
+    // Validate accounting balance — log warning if unbalanced
+    if (Math.abs(totalDebito - totalCredito) > 0.01) {
+      console.warn(`[ConciliaYA] Asiento ${entryNumber} DESBALANCEADO: débito=$${totalDebito.toFixed(2)} crédito=$${totalCredito.toFixed(2)} diff=$${(totalDebito - totalCredito).toFixed(2)}`, {
+        mov: mov.id, client: client.name, withholding, bankFee, excessCredit,
+        totalApplied, facturas: affectedInvoices.map(f => `${f.factura_numero}: $${f.monto_aplicado}`)
+      });
+    }
+
     const entry: AccountingEntry = {
       id: 'ast_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
       asiento_numero: entryNumber,
@@ -512,7 +520,12 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
 
     // Handle excess credit if present
-    const excess = sugerencia.saldo_a_favor_estimado || 0;
+    // Recompute excess from actual amounts to ensure accounting balance:
+    // Debit: Banco(mov.monto) + Retenciones(withholding) + Gastos(bankFee)
+    //        = Credit: Deudores(totalApplied) + Anticipos(excess)
+    // So: excess = mov.monto + withholding + bankFee - totalApplied
+    const totalAppliedToInvoices = newPaymentApps.reduce((sum, p) => sum + p.monto_aplicado, 0);
+    const excess = Math.max(0, Math.round((mov.monto + withholding + bankFee - totalAppliedToInvoices) * 100) / 100);
     if (excess > 0) {
       const newCredit: ClientCredit = {
         id: 'cred_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
@@ -1088,9 +1101,29 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         merged.set(inv.numero, { ...inv });
       }
     }
-    const deduplicated = Array.from(merged.values());
+    const deduplicated: Invoice[] = Array.from(merged.values());
 
-    const updatedInvoices = [...deduplicated, ...invoices];
+    // Merge with existing invoices: same numero = update, new numero = append
+    const existingByNumero = new Map<string, Invoice>(invoices.map((inv: Invoice) => [inv.numero, inv]));
+    for (const inv of deduplicated) {
+      const existing = existingByNumero.get(inv.numero);
+      if (existing) {
+        const newMontoPagado = (existing.monto_pagado || 0) + (inv.monto_pagado || 0);
+        const newMontoConIva = (existing.monto_con_iva || existing.importe) + (inv.monto_con_iva || inv.importe);
+        const nuevoSaldo = newMontoConIva - newMontoPagado;
+        existingByNumero.set(inv.numero, {
+          ...existing,
+          importe: existing.importe + inv.importe,
+          monto_con_iva: newMontoConIva,
+          monto_pagado: newMontoPagado,
+          saldo_pendiente: Math.max(0, nuevoSaldo),
+          estado: nuevoSaldo <= 0.01 ? 'pagada' : nuevoSaldo < newMontoConIva - 0.01 ? 'parcial' : 'pendiente'
+        });
+      } else {
+        existingByNumero.set(inv.numero, { ...inv });
+      }
+    }
+    const updatedInvoices = Array.from(existingByNumero.values());
     setInvoices(updatedInvoices);
 
     const updatedClients = [...clients];

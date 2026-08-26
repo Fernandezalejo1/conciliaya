@@ -698,7 +698,7 @@ export function matchBankMovement(
 
       // Check withholding
       const diff = invAmount - amount;
-      if (diff > 0 && (diff <= invAmount * 0.05 || normDesc.includes('RET'))) {
+      if (diff > 0 && (diff <= invAmount * 0.05 || (diff <= 1000 && normDesc.includes('RET')))) {
         return {
           cliente_id: best.client.id,
           cliente_nombre: best.client.name,
@@ -984,8 +984,8 @@ export function runFIFOAllocation(
               facturas: [],
             });
             alreadyReconciledMovs.add(mov.id);
+            break;
           }
-          break;
         }
       }
     }

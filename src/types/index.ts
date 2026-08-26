@@ -98,6 +98,7 @@ export interface BankMovement {
   referencia?: string;
   origen_banco: string;
   estado_conciliacion: MovementStatus;
+  es_credito?: boolean;
   cliente_sugerido_id?: string;
   cliente_sugerido_name?: string;
   confianza: number; // 0 - 100
