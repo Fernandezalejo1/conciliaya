@@ -39,10 +39,17 @@ export function extractClientNameFromBankDesc(desc: string): string {
   }
 
   // 4. Slash + reference number: "SOLVENTA SA /4096546" → "SOLVENTA SA"
-  // Use raw desc before normalization stripped the /
-  const rawSlash = desc.match(/^(.+?)\s*\/\d[\d\s]*$/i);
-  if (rawSlash && rawSlash[1]) {
-    const cleaned = normalizeText(rawSlash[1]).trim();
+  // Use text (prefix-stripped) via normalized desc to avoid restoring stripped prefixes
+  const slashMatch = desc.match(/^(.+?)\s*\/\d[\d\s]*$/i);
+  if (slashMatch && slashMatch[1]) {
+    let cleaned = normalizeText(slashMatch[1]).trim();
+    // Also strip transaction prefixes from slash result (in case desc has PAGO etc.)
+    for (const pfx of txPrefixes) {
+      if (cleaned.startsWith(pfx + ' ')) {
+        cleaned = cleaned.substring(pfx.length).trim();
+        break;
+      }
+    }
     if (cleaned && cleaned.length >= 2) text = cleaned;
   }
 
@@ -298,21 +305,28 @@ export function findInvoiceCombination(invoices: Invoice[], targetAmount: number
   const single = sorted.find(i => Math.abs(i.saldo_pendiente - targetAmount) < 0.01);
   if (single) return [single];
 
-  // Try 2 to 4 invoices combinations
-  const n = Math.min(sorted.length, 8);
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      if (Math.abs(sorted[i].saldo_pendiente + sorted[j].saldo_pendiente - targetAmount) < 0.01) {
-        return [sorted[i], sorted[j]];
-      }
-      for (let k = j + 1; k < n; k++) {
-        if (Math.abs(sorted[i].saldo_pendiente + sorted[j].saldo_pendiente + sorted[k].saldo_pendiente - targetAmount) < 0.01) {
-          return [sorted[i], sorted[j], sorted[k]];
-        }
-      }
-    }
+  // Try 2 to 5 invoices combinations (DFS for efficiency)
+  const n = Math.min(sorted.length, 10);
+  for (let size = 2; size <= Math.min(5, n); size++) {
+    const found = combineDFS(sorted, n, size, 0, 0, targetAmount, []);
+    if (found) return found;
   }
 
+  return null;
+}
+
+function combineDFS(sorted: Invoice[], n: number, size: number, start: number, currentSum: number, target: number, current: Invoice[]): Invoice[] | null {
+  if (current.length === size) {
+    return Math.abs(currentSum - target) < 0.01 ? current : null;
+  }
+  const remaining = size - current.length;
+  for (let i = start; i <= n - remaining; i++) {
+    const newSum = currentSum + sorted[i].saldo_pendiente;
+    // Prune: if adding the smallest remaining still exceeds target + tolerance, skip
+    if (newSum > target + 0.01 && current.length < size - 1) continue;
+    const result = combineDFS(sorted, n, size, i + 1, newSum, target, [...current, sorted[i]]);
+    if (result) return result;
+  }
   return null;
 }
 
@@ -617,8 +631,10 @@ export function matchBankMovement(
 
   scoredClients.sort((a, b) => b.score - a.score);
 
-  if (scoredClients.length > 0) {
-    const best = scoredClients[0];
+  // Try top 3 clients (within 10% of best score) to find amount matches
+  const topClients = scoredClients.filter((c, i) => i < 3 || c.score >= scoredClients[0].score - 0.10);
+
+  for (const best of topClients) {
     const clientInvoices = openInvoices.filter(i => i.cliente_id === best.client.id);
 
     // Exact invoice match for this fuzzy client

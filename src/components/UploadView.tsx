@@ -40,7 +40,7 @@ import {
 } from '../utils/fileValidation';
 
 export const UploadView: React.FC = () => {
-  const { invoices, bankMovements, importInvoices, importBankMovements, runMatchingEngine, setActiveTab, company } = useConcilia();
+  const { invoices, bankMovements, importInvoices, importBankMovements, setActiveTab, company } = useConcilia();
 
   const [activeUploadType, setActiveUploadType] = useState<'invoices' | 'movements'>('invoices');
   const [ingestMode, setIngestMode] = useState<'file' | 'clipboard'>('file');
@@ -356,8 +356,8 @@ export const UploadView: React.FC = () => {
       }
 
       setTimeout(() => {
-        runMatchingEngine();
-      }, 350);
+        setSuccessMsg(prev => prev ? prev.replace(' Ejecutando motor de matching...', '') : prev);
+      }, 400);
     }
 
     setParsedRows([]);
