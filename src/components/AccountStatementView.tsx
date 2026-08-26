@@ -678,6 +678,49 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
         </>
       )}
 
+      {/* Bottom Client Navigation */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-slate-600 uppercase whitespace-nowrap">Ir a Cliente:</span>
+          <select
+            value={selectedClientId}
+            onChange={(e) => setSelectedClientId(e.target.value)}
+            className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          >
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}{c.currentBalance > 0 ? ` — Debe ${company.currencySymbol}${c.currentBalance.toLocaleString('es-UY')}` : ' — al día'}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {clients.map((c) => {
+            const isSelected = c.id === selectedClientId;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setSelectedClientId(c.id)}
+                className={`
+                  px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all border
+                  ${isSelected
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
+                  }
+                `}
+              >
+                {c.name}
+                {c.currentBalance > 0 && (
+                  <span className={`ml-1 px-1 py-0.5 rounded text-[9px] ${isSelected ? 'bg-blue-800 text-blue-100' : 'bg-red-100 text-red-700'}`}>
+                    ${c.currentBalance.toLocaleString('es-UY')}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Email Modal */}
       {isEmailModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
