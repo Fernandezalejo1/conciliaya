@@ -45,7 +45,8 @@ export const DashboardView: React.FC = () => {
     .filter(m => m.estado_conciliacion !== 'conciliado_manual' && m.estado_conciliacion !== 'descartado')
     .length;
 
-  const autoMatches = bankMovements.filter(m => m.estado_conciliacion === 'auto');
+  const autoMatches = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.sugerencia?.tipo !== 'ya_conciliado');
+  const yaConciliadoMatches = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.sugerencia?.tipo === 'ya_conciliado');
   const suggestedMatches = bankMovements.filter(m => m.estado_conciliacion === 'sugerido');
   const unidentifiedMatches = bankMovements.filter(m => m.estado_conciliacion === 'sin_identificar');
   const reconciledMatches = bankMovements.filter(m => m.estado_conciliacion === 'conciliado_manual');
@@ -62,6 +63,7 @@ export const DashboardView: React.FC = () => {
   const statusChartData = [
     { name: 'Conciliados', value: reconciledMatches.length, color: '#10b981' },
     { name: '100% Automáticos', value: autoMatches.length, color: '#2563eb' },
+    { name: 'Ya Conciliados', value: yaConciliadoMatches.length, color: '#8b5cf6' },
     { name: 'Sugeridos (1 Clic)', value: suggestedMatches.length, color: '#f59e0b' },
     { name: 'Sin Identificar', value: unidentifiedMatches.length, color: '#ef4444' }
   ].filter(d => d.value > 0);
@@ -178,12 +180,17 @@ export const DashboardView: React.FC = () => {
           <div className="mt-3">
             <div className="text-2xl font-bold text-slate-900 dark:text-white">
               {bankMovements.length > 0
-                ? `${Math.round(((autoMatches.length + suggestedMatches.length + reconciledMatches.length) / bankMovements.length) * 100)}%`
+                ? (() => {
+                    const atRisk = bankMovements.length - yaConciliadoMatches.length;
+                    return atRisk > 0
+                      ? `${Math.round(((autoMatches.length + suggestedMatches.length + reconciledMatches.length) / atRisk) * 100)}%`
+                      : '100%';
+                  })()
                 : '100%'}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center">
               <span className="font-semibold text-emerald-600 dark:text-emerald-400 mr-1">{autoMatches.length + suggestedMatches.length} sugerencias</span>
-              con 0 errores
+              de {bankMovements.length - yaConciliadoMatches.length} en evaluación
             </p>
           </div>
         </div>
