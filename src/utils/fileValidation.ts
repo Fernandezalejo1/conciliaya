@@ -250,6 +250,7 @@ export function validateInvoicesBatch(
     vencimiento: string;
     importe: string;
     moneda?: string;
+    iva_monto?: string;
   },
   existingInvoices: Invoice[] = []
 ): ValidationSummary<Invoice> {
@@ -293,6 +294,7 @@ export function validateInvoicesBatch(
     const rawVencimiento = columnMap.vencimiento ? rawRow[columnMap.vencimiento] : undefined;
     const rawImporte = columnMap.importe ? rawRow[columnMap.importe] : undefined;
     const rawMoneda = columnMap.moneda ? rawRow[columnMap.moneda] : undefined;
+    const rawIva = columnMap.iva_monto ? rawRow[columnMap.iva_monto] : undefined;
 
     // Capture alternate client name columns for matching aliases
     const clienteAltNames: string[] = [];
@@ -475,6 +477,34 @@ export function validateInvoicesBatch(
     let sanitizedInvoice: Invoice | undefined;
     if (!hasRowError) {
       const validAmount = parsedAmount.value || 0;
+
+      // IVA computation: determine if importe already includes IVA
+      const parsedIva = parseRobustNumber(rawIva);
+      const ivaAmount = parsedIva.isValid ? (parsedIva.value || 0) : 0;
+      const importeColLower = (columnMap.importe || '').toLowerCase();
+      const importeAlreadyHasIva = importeColLower.includes('con iva');
+
+      let montoSinIva: number;
+      let montoConIva: number;
+      let ivaMonto: number;
+
+      if (importeAlreadyHasIva) {
+        // Importe column already has IVA (e.g. "Monto (con IVA)")
+        montoConIva = validAmount;
+        ivaMonto = ivaAmount > 0 ? ivaAmount : Math.round((validAmount - validAmount / 1.22) * 100) / 100;
+        montoSinIva = Math.round((validAmount - ivaMonto) * 100) / 100;
+      } else if (ivaAmount > 0) {
+        // IVA column mapped and has value → add to importe
+        montoSinIva = validAmount;
+        ivaMonto = ivaAmount;
+        montoConIva = validAmount + ivaAmount;
+      } else {
+        // No IVA column or empty → apply default 22%
+        montoSinIva = validAmount;
+        ivaMonto = Math.round(validAmount * 0.22 * 100) / 100;
+        montoConIva = Math.round((validAmount + ivaMonto) * 100) / 100;
+      }
+
       sanitizedInvoice = {
         id: `inv_imp_${Date.now()}_${idx}`,
         cliente_id: 'cli_imp_' + (clienteStr || 'cliente').toLowerCase().replace(/[^a-z0-9]/g, '_'),
@@ -484,8 +514,11 @@ export function validateInvoicesBatch(
         numero: numStr,
         fecha: parsedFecha.isoDate || new Date().toISOString().split('T')[0],
         vencimiento: vencimientoIso,
-        importe: validAmount,
-        saldo_pendiente: validAmount,
+        importe: montoConIva,
+        saldo_pendiente: montoConIva,
+        monto_sin_iva: montoSinIva,
+        monto_con_iva: montoConIva,
+        iva_monto: ivaMonto,
         moneda: currency,
         estado: 'pendiente'
       };

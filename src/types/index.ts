@@ -58,6 +58,9 @@ export interface Invoice {
   vencimiento: string;
   importe: number;
   saldo_pendiente: number;
+  monto_sin_iva?: number;
+  monto_con_iva?: number;
+  iva_monto?: number;
   moneda: CurrencyCode;
   tipo_cambio?: number;
   estado: InvoiceStatus;

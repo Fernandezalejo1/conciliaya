@@ -288,7 +288,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                 )
                 .map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}{c.currentBalance > 0 ? ` — Debe ${company.currencySymbol}${c.currentBalance.toLocaleString('es-UY')}` : ' — al día'}
+                    {c.name}{c.creditBalance > 0 ? ` — A favor ${company.currencySymbol}${c.creditBalance.toLocaleString('es-UY')}` : c.currentBalance > 0 ? ` — Debe ${company.currencySymbol}${c.currentBalance.toLocaleString('es-UY')}` : ' — al día'}
                   </option>
                 ))}
             </select>
