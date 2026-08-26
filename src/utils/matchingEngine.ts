@@ -299,14 +299,17 @@ export function extractInvoiceTokens(text: string): string[] {
  */
 export function findInvoiceCombination(invoices: Invoice[], targetAmount: number): Invoice[] | null {
   const sorted = [...invoices].filter(i => i.saldo_pendiente > 0).sort((a, b) => {
-    const bTotal = b.monto_con_iva || b.importe;
-    const aTotal = a.monto_con_iva || a.importe;
+    const bTotal = Math.min(b.monto_con_iva || b.importe, b.saldo_pendiente);
+    const aTotal = Math.min(a.monto_con_iva || a.importe, a.saldo_pendiente);
     return bTotal - aTotal;
   });
   if (sorted.length === 0) return null;
 
-  // Single invoice exact — compare against monto_con_iva (consumidor final)
-  const single = sorted.find(i => Math.abs((i.monto_con_iva || i.importe) - targetAmount) < 0.01);
+  // Single invoice exact — compare against min(monto_con_iva, saldo_pendiente)
+  const single = sorted.find(i => {
+    const effective = Math.min(i.monto_con_iva || i.importe, i.saldo_pendiente);
+    return Math.abs(effective - targetAmount) < 0.01;
+  });
   if (single) return [single];
 
   // Try 2 to 5 invoices combinations (DFS for efficiency)
@@ -325,7 +328,8 @@ function combineDFS(sorted: Invoice[], n: number, size: number, start: number, c
   }
   const remaining = size - current.length;
   for (let i = start; i <= n - remaining; i++) {
-    const newSum = currentSum + (sorted[i].monto_con_iva || sorted[i].importe);
+    const effective = Math.min(sorted[i].monto_con_iva || sorted[i].importe, sorted[i].saldo_pendiente);
+    const newSum = currentSum + effective;
     // Prune: if adding the smallest remaining still exceeds target + tolerance, skip
     if (newSum > target + 0.01 && current.length < size - 1) continue;
     const result = combineDFS(sorted, n, size, i + 1, newSum, target, [...current, sorted[i]]);
@@ -1022,6 +1026,9 @@ export function runFIFOAllocation(
       invoiceRemaining.set(inv.id, inv.saldo_pendiente);
     }
 
+    // Exclusivity: once an invoice is fully matched, it's removed from the pool
+    const matchedInvoiceIds = new Set<string>();
+
     // Process each movement in chronological order (only those not already reconciled)
     for (const { mov, extractedName } of fifoMovEntries) {
       // Sub-pool matching: when a client has invoices with different razonSocial values
@@ -1092,10 +1099,78 @@ export function runFIFOAllocation(
         }
       }
 
+      // Exclusivity: remove already-matched invoices from the pool
+      const availablePool = poolInvoices.filter(i => !matchedInvoiceIds.has(i.id));
+
+      // PRIORITY 1: Exact match — single invoice monto_con_iva == mov.monto
+      const exactMatch = availablePool.find(i => {
+        const effective = Math.min(i.monto_con_iva || i.importe, invoiceRemaining.get(i.id) || 0);
+        return effective > 0.01 && Math.abs(effective - mov.monto) < 1;
+      });
+
+      if (exactMatch) {
+        const apply = mov.monto;
+        const invRemain = invoiceRemaining.get(exactMatch.id) || 0;
+        const allocated: SuggestedMatch['facturas'] = [{
+          factura_id: exactMatch.id,
+          factura_numero: exactMatch.numero,
+          importe: exactMatch.importe,
+          saldo_pendiente: invRemain,
+          monto_a_aplicar: Math.min(apply, invRemain),
+          moneda: exactMatch.moneda
+        }];
+        invoiceRemaining.set(exactMatch.id, invRemain - Math.min(apply, invRemain));
+        matchedInvoiceIds.add(exactMatch.id);
+
+        const confianza = Math.min(96, Math.round(bestScoreForMov(mov, client, clients, learnedAliases) * 100));
+        results.set(mov.id, {
+          cliente_id: client.id,
+          cliente_nombre: client.name,
+          confianza,
+          motivo: `Match exacto 1:1 — Factura ${exactMatch.numero} ($${effectiveForMatch(exactMatch).toLocaleString()}) = $${mov.monto.toLocaleString()}`,
+          tipo: 'exacto_factura',
+          facturas: allocated,
+        });
+        continue;
+      }
+
+      // PRIORITY 2: Sum match — combination of invoices == mov.monto
+      const sumMatch = findInvoiceCombination(availablePool, mov.monto);
+      if (sumMatch && sumMatch.length > 1) {
+        const allocated: SuggestedMatch['facturas'] = [];
+        for (const inv of sumMatch) {
+          const invRemain = invoiceRemaining.get(inv.id) || 0;
+          const effective = Math.min(inv.monto_con_iva || inv.importe, invRemain);
+          const apply = Math.min(effective, invRemain);
+          allocated.push({
+            factura_id: inv.id,
+            factura_numero: inv.numero,
+            importe: inv.importe,
+            saldo_pendiente: invRemain,
+            monto_a_aplicar: apply,
+            moneda: inv.moneda
+          });
+          invoiceRemaining.set(inv.id, invRemain - apply);
+          matchedInvoiceIds.add(inv.id);
+        }
+
+        const confianza = Math.min(94, Math.round(bestScoreForMov(mov, client, clients, learnedAliases) * 100));
+        results.set(mov.id, {
+          cliente_id: client.id,
+          cliente_nombre: client.name,
+          confianza,
+          motivo: `Suma exacta de ${sumMatch.length} facturas = $${mov.monto.toLocaleString()} (${sumMatch.map(i => i.numero).join(', ')})`,
+          tipo: 'multi_factura',
+          facturas: allocated,
+        });
+        continue;
+      }
+
+      // PRIORITY 3: FIFO distribution (only if no exact or sum match found)
       let remaining = mov.monto;
       const allocated: SuggestedMatch['facturas'] = [];
 
-      for (const inv of poolInvoices) {
+      for (const inv of availablePool) {
         if (remaining <= 0.01) break;
         const invRemain = invoiceRemaining.get(inv.id) || 0;
         if (invRemain <= 0.01) continue;
@@ -1110,6 +1185,7 @@ export function runFIFOAllocation(
           moneda: inv.moneda
         });
         invoiceRemaining.set(inv.id, invRemain - apply);
+        if (invRemain - apply <= 0.01) matchedInvoiceIds.add(inv.id);
         remaining -= apply;
       }
 
@@ -1136,6 +1212,10 @@ export function runFIFOAllocation(
   }
 
   return results;
+}
+
+function effectiveForMatch(inv: Invoice): number {
+  return Math.min(inv.monto_con_iva || inv.importe, inv.saldo_pendiente);
 }
 
 function bestScoreForMov(mov: BankMovement, client: Client, clients: Client[], aliases: LearnedAlias[]): number {
