@@ -53,6 +53,14 @@ export const AccountStatementView: React.FC = () => {
 
   const selectedClient = clients.find(c => c.id === selectedClientId) || clients[0];
 
+  // Compute debt from invoices (source of truth) instead of client.currentBalance
+  const getClientDebt = (clientId: string) =>
+    invoices
+      .filter(i => i.cliente_id === clientId && i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada')
+      .reduce((sum, i) => sum + i.saldo_pendiente, 0);
+
+  const selectedClientDebt = getClientDebt(selectedClientId);
+
   // Invoices for client
   const clientInvoices = invoices.filter(i => i.cliente_id === selectedClientId);
   const pendingInvoices = clientInvoices.filter(i => i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada');
@@ -197,7 +205,7 @@ Por medio de la presente, les compartimos el detalle actualizado de su estado de
 
 RESUMEN DE CUENTA:
 --------------------------------------------------
-Saldo total pendiente de cobro: ${company.currencySymbol} ${selectedClient.currentBalance.toLocaleString('es-UY')}
+Saldo total pendiente de cobro: ${company.currencySymbol} ${selectedClientDebt.toLocaleString('es-UY')}
 ${totalAvailableCredit > 0 ? `Crédito / Saldo a favor disponible: ${company.currencySymbol} ${totalAvailableCredit.toLocaleString('es-UY')}\n` : ''}
 DETALLE DE FACTURAS PENDIENTES:
 ${invoicesListText || '  (No registra facturas vencidas a la fecha)'}
@@ -227,7 +235,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
       selectedClient.name,
       emailRecipient,
       emailSubject,
-      selectedClient.currentBalance,
+      selectedClientDebt,
       pendingInvoices.map(i => i.numero)
     );
 
@@ -287,9 +295,9 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                   c.rut_ci.includes(clientSearchTerm)
                 )
                 .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}{c.creditBalance > 0 ? ` — A favor ${company.currencySymbol}${c.creditBalance.toLocaleString('es-UY')}` : c.currentBalance > 0 ? ` — Debe ${company.currencySymbol}${c.currentBalance.toLocaleString('es-UY')}` : ' — al día'}
-                  </option>
+              <option key={c.id} value={c.id}>
+                {c.name}{c.creditBalance > 0 ? ` — A favor ${company.currencySymbol}${c.creditBalance.toLocaleString('es-UY')}` : getClientDebt(c.id) > 0 ? ` — Debe ${company.currencySymbol}${getClientDebt(c.id).toLocaleString('es-UY')}` : ' — al día'}
+              </option>
                 ))}
             </select>
             <ChevronDown className="h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
@@ -396,7 +404,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
               <div className="bg-blue-50/60 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200/60 dark:border-blue-800">
                 <span className="text-[11px] font-semibold text-blue-700 uppercase">Saldo Deudor Pendiente</span>
                 <div className="text-xl font-extrabold text-blue-900 mt-1">
-                  {company.currencySymbol} {selectedClient.currentBalance.toLocaleString('es-UY')}
+                  {company.currencySymbol} {selectedClientDebt.toLocaleString('es-UY')}
                 </div>
               </div>
 
@@ -409,7 +417,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
             </div>
 
             {/* Aging Report Breakdown for this client */}
-            {selectedClient.currentBalance > 0 && (
+            {selectedClientDebt > 0 && (
               <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700">
                 <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase mb-2 flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
@@ -689,7 +697,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
           >
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}{c.currentBalance > 0 ? ` — Debe ${company.currencySymbol}${c.currentBalance.toLocaleString('es-UY')}` : ' — al día'}
+                {c.name}{getClientDebt(c.id) > 0 ? ` — Debe ${company.currencySymbol}${getClientDebt(c.id).toLocaleString('es-UY')}` : ' — al día'}
               </option>
             ))}
           </select>
@@ -710,9 +718,9 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                 `}
               >
                 {c.name}
-                {c.currentBalance > 0 && (
+                {getClientDebt(c.id) > 0 && (
                   <span className={`ml-1 px-1 py-0.5 rounded text-[9px] ${isSelected ? 'bg-blue-800 text-blue-100' : 'bg-red-100 text-red-700'}`}>
-                    ${c.currentBalance.toLocaleString('es-UY')}
+                    ${getClientDebt(c.id).toLocaleString('es-UY')}
                   </span>
                 )}
               </button>

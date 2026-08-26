@@ -35,7 +35,7 @@ export const DashboardView: React.FC = () => {
     .reduce((sum, i) => sum + i.saldo_pendiente, 0);
 
   const totalInvoicesCount = invoices.length;
-  const pendingInvoicesCount = invoices.filter(i => i.saldo_pendiente > 0).length;
+  const pendingInvoicesCount = invoices.filter(i => i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada').length;
 
   const totalBankPendingAmount = bankMovements
     .filter(m => m.estado_conciliacion !== 'conciliado_manual' && m.estado_conciliacion !== 'descartado')
@@ -66,14 +66,21 @@ export const DashboardView: React.FC = () => {
     { name: 'Sin Identificar', value: unidentifiedMatches.length, color: '#ef4444' }
   ].filter(d => d.value > 0);
 
-  // Chart Data: Client Receivables
+  // Chart Data: Client Receivables (computed from invoices as source of truth)
+  const clientDebts = new Map<string, number>();
+  for (const inv of invoices) {
+    if (inv.saldo_pendiente > 0 && inv.estado !== 'pagada' && inv.estado !== 'anulada') {
+      clientDebts.set(inv.cliente_id, (clientDebts.get(inv.cliente_id) || 0) + inv.saldo_pendiente);
+    }
+  }
   const topDebtors = [...clients]
-    .sort((a, b) => b.currentBalance - a.currentBalance)
+    .map(c => ({ ...c, computedDebt: clientDebts.get(c.id) || 0 }))
+    .sort((a, b) => b.computedDebt - a.computedDebt)
     .slice(0, 5);
 
   const clientChartData = topDebtors.map(c => ({
     name: c.name.length > 18 ? c.name.substring(0, 16) + '...' : c.name,
-    saldo: c.currentBalance,
+    saldo: c.computedDebt,
     fullName: c.name
   }));
 

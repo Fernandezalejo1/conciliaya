@@ -115,7 +115,12 @@ export const ClientsView: React.FC = () => {
   );
 
   const getClientInvoiceCount = (clientId: string) =>
-    invoices.filter(i => i.cliente_id === clientId && i.saldo_pendiente > 0).length;
+    invoices.filter(i => i.cliente_id === clientId && i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada').length;
+
+  const getClientDebt = (clientId: string) =>
+    invoices
+      .filter(i => i.cliente_id === clientId && i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada')
+      .reduce((sum, i) => sum + i.saldo_pendiente, 0);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -229,8 +234,8 @@ export const ClientsView: React.FC = () => {
 
                   <div className="flex items-center gap-4 mt-3 text-[11px]">
                     <span className="text-slate-500 dark:text-slate-400">
-                      Deuda: <span className={`font-bold ${client.currentBalance > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                        ${client.currentBalance.toLocaleString()}
+                      Deuda: <span className={`font-bold ${getClientDebt(client.id) > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                        ${getClientDebt(client.id).toLocaleString()}
                       </span>
                     </span>
                     {client.creditBalance > 0 && (

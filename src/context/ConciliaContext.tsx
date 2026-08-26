@@ -1031,11 +1031,13 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     for (const inv of newInvoices) {
       const existing = merged.get(inv.numero);
       if (existing) {
+        const nuevoSaldo = existing.saldo_pendiente + inv.saldo_pendiente;
         merged.set(inv.numero, {
           ...existing,
           importe: existing.importe + inv.importe,
           monto_con_iva: (existing.monto_con_iva || existing.importe) + (inv.monto_con_iva || inv.importe),
-          saldo_pendiente: existing.saldo_pendiente + inv.saldo_pendiente
+          saldo_pendiente: nuevoSaldo,
+          estado: nuevoSaldo <= 0.01 ? 'pagada' : nuevoSaldo < (existing.monto_con_iva || existing.importe) ? 'parcial' : 'pendiente'
         });
       } else {
         merged.set(inv.numero, { ...inv });

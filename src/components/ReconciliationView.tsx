@@ -220,7 +220,7 @@ export const ReconciliationView: React.FC = () => {
   // Calculations inside modal
   const selectedClient = clients.find(c => c.id === selectedClientId);
   const selectedClientInvoices = invoices.filter(
-    i => i.cliente_id === selectedClientId && i.saldo_pendiente > 0 && i.estado !== 'pagada'
+    i => i.cliente_id === selectedClientId && i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada'
   );
 
   const totalAllocatedInModal = Object.values(manualAllocations).reduce<number>((sum, val) => sum + (Number(val) || 0), 0);
