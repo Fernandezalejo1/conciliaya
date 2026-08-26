@@ -106,13 +106,11 @@ export function parseRobustNumber(val: any): {
     // Only dot: could be 1234.56 (decimal) or 1.000.000 (thousands)
     const dotParts = cleaned.split('.');
     if (dotParts.length > 2) {
-      // Multiple dots -> thousands
-      cleaned = cleaned.replace(/\./g, '');
-    } else if (dotParts.length === 2 && dotParts[1].length === 3 && parseInt(dotParts[0], 10) >= 1) {
-      // Ambiguous: 45.000 in Latin America is 45000, but in US could be 45.000 (decimal).
-      // If exactly 3 digits after dot and no decimal elsewhere, treat as thousand if > 0
+      // Multiple dots -> thousands separator (1.234.567)
       cleaned = cleaned.replace(/\./g, '');
     }
+    // Single dot with 3 digits after: leave as-is (treat as decimal, not thousands)
+    // e.g. "45.000" stays 45.000 (US decimal), user can override if needed
   }
 
   // Remove any remaining invalid characters except dot and digits
@@ -315,6 +313,17 @@ export function validateInvoicesBatch(
         rawRow
       });
       return;
+    }
+
+    // Skip TOTAL / summary rows — scan all fields for summary keywords
+    const allValuesStr = Object.values(rawRow).map(v => String(v || '')).join(' ').toLowerCase();
+    const summaryKeywords = ['totales', 'total neto', 'total general', 'subtotal', 'sumas', 'grand total'];
+    if (summaryKeywords.some(kw => allValuesStr.includes(kw))) {
+      const keyFieldEmpty = !String(rawNumero || '').trim();
+      const dateFieldEmpty = !String(rawFecha || '').trim();
+      if (keyFieldEmpty || dateFieldEmpty) {
+        return;
+      }
     }
 
     // A. Validate Invoice Number
@@ -565,6 +574,47 @@ export function validateBankMovementsBatch(
           severity: 'error',
           message: 'Fila completamente vacía en el extracto bancario',
           rawValue: rawRow
+        }],
+        rawRow
+      });
+      return;
+    }
+
+    // Skip TOTAL / summary rows — scan all fields for summary keywords
+    const allValuesStr = Object.values(rawRow).map(v => String(v || '')).join(' ').toLowerCase();
+    const summaryKws = ['totales', 'total neto', 'total general', 'subtotal', 'sumas', 'grand total'];
+    if (summaryKws.some(kw => allValuesStr.includes(kw))) {
+      const dateEmpty = !String(rawFecha || '').trim();
+      if (dateEmpty) {
+        return;
+      }
+    }
+
+    // Skip debits (only credits are reconcilable for accounts receivable)
+    // Scan all columns for credit/debit indicator — header might be named anything
+    let isDebit = false;
+    for (const key of Object.keys(rawRow)) {
+      const kNorm = key.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (kNorm.includes('credito/debito') || kNorm.includes('tipo operacion') || kNorm.includes('tipo mov')) {
+        const val = String(rawRow[key] || '').trim().toLowerCase();
+        if (val === 'debit' || val === 'débito' || val === 'debito' || val === 'd' || val === 'deb') {
+          isDebit = true;
+        }
+        break;
+      }
+    }
+    if (isDebit) {
+      rowStatuses.push({
+        rowIndex: idx,
+        rowNumber,
+        status: 'warning',
+        issues: [{
+          rowIndex: idx,
+          field: 'monto',
+          fieldLabel: 'Tipo Operación',
+          severity: 'warning',
+          message: 'Fila omitida: es un débito (egreso). Solo los créditos (ingresos) concilian cobranzas de facturas.',
+          rawValue: 'debit'
         }],
         rawRow
       });

@@ -56,6 +56,8 @@ export function stripBankNoise(text: string): string {
     'TRANSFERENCIA BANCARIA',
     'TRANSFERENCIA DE',
     'TRANSFERENCIA',
+    'TRANSF ENTRE CTAS',
+    'TRANSF.ENTRE CTAS',
     'TRF REC',
     'TRF TERCEROS',
     'TRF SPI',
@@ -67,6 +69,7 @@ export function stripBankNoise(text: string): string {
     'PAGO FACTURA',
     'PAGO RECIBIDO',
     'PAGO',
+    'DEP.CON CHQS.AL COBRO',
     'DEPOSITO CAJA EFECTIVO',
     'DEPOSITO CAJA',
     'DEPOSITO EN EFECTIVO',
@@ -85,12 +88,32 @@ export function stripBankNoise(text: string): string {
     'BANCO'
   ];
 
+  const suffixes = [
+    'PAYS',
+    'SALE',
+    'ALQUILER',
+    'ALQUILERES'
+  ];
+
   let cleaned = norm;
-  for (const prefix of prefixes) {
-    if (cleaned.startsWith(prefix + ' ')) {
-      cleaned = cleaned.substring(prefix.length).trim();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const prefix of prefixes) {
+      if (cleaned.startsWith(prefix + ' ')) {
+        cleaned = cleaned.substring(prefix.length).trim();
+        changed = true;
+        break;
+      }
     }
   }
+
+  for (const suf of suffixes) {
+    if (cleaned.endsWith(' ' + suf)) {
+      cleaned = cleaned.substring(0, cleaned.length - suf.length).trim();
+    }
+  }
+
   return cleaned;
 }
 
@@ -165,20 +188,47 @@ export function stringSimilarity(str1: string, str2: string): number {
 
 /**
  * Extracts possible invoice numbers from raw text
- * e.g. "FAC-1042", "F1042", "1042", "F-0001042", "EXP-450"
+ * e.g. "FAC-1042", "F1042", "1042", "A6", "A10", "EXP-450", "/4096546"
  */
 export function extractInvoiceTokens(text: string): string[] {
   const norm = normalizeText(text);
-  const matches = norm.match(/\b(?:FAC|F|FACTURA|INV|NC|EXP)?[- ]?(\d{3,8})\b/gi) || [];
   const results = new Set<string>();
-  
-  for (const m of matches) {
+
+  // Pattern 1: Standard invoice prefixes (FAC, F, FACTURA, INV, NC, EXP) + number
+  const stdMatches = norm.match(/\b(?:FAC|F|FACTURA|INV|NC|EXP)?[- ]?(\d{3,8})\b/gi) || [];
+  for (const m of stdMatches) {
     const cleanNum = m.replace(/[^0-9]/g, '');
     if (cleanNum && cleanNum.length >= 3) {
       results.add(cleanNum);
       results.add(m.trim());
     }
   }
+
+  // Pattern 2: Letter-prefix invoice numbers (A6, A10, B12, etc.) — common in Uruguayan SMEs
+  const letterMatches = norm.match(/\b([A-Z]{1,3})[- ]?(\d{1,6})\b/g) || [];
+  for (const m of letterMatches) {
+    const parts = m.match(/^([A-Z]{1,3})[- ]?(\d{1,6})$/);
+    if (parts) {
+      const prefix = parts[1];
+      const num = parts[2];
+      // Only add if prefix looks like an invoice series (single/double letter)
+      if (prefix.length <= 2 && num.length >= 1) {
+        results.add(`${prefix}${num}`);
+        results.add(`${prefix}-${num}`);
+        results.add(num);
+      }
+    }
+  }
+
+  // Pattern 3: Slash reference patterns from bank descriptions (e.g. "/4096546", "/35")
+  const slashMatches = norm.match(/\/(\d{2,10})\b/g) || [];
+  for (const m of slashMatches) {
+    const num = m.replace(/[^0-9]/g, '');
+    if (num && num.length >= 2) {
+      results.add(num);
+    }
+  }
+
   return Array.from(results);
 }
 
@@ -496,6 +546,9 @@ export function matchBankMovement(
       if (movCurrency === 'UYU' && exactInvoice.moneda === 'USD') {
         invAmount = exactInvoice.saldo_pendiente * usdExchangeRate;
         isBimonetary = true;
+      } else if (movCurrency === 'USD' && exactInvoice.moneda === 'UYU') {
+        invAmount = exactInvoice.saldo_pendiente / usdExchangeRate;
+        isBimonetary = true;
       }
 
       if (Math.abs(invAmount - amount) < 1) {
@@ -615,16 +668,29 @@ export function matchBankMovement(
   // =========================================================================
   // PASO 4 — Búsqueda por Coincidencia Unívoca de Importe en Cartera
   // =========================================================================
-  const invoicesWithExactAmount = openInvoices.filter(i => Math.abs(i.saldo_pendiente - amount) < 0.01);
+  const invoicesWithExactAmount = openInvoices.filter(i => {
+    let effectiveSaldo = i.saldo_pendiente;
+    if (movCurrency === 'UYU' && i.moneda === 'USD') {
+      effectiveSaldo = i.saldo_pendiente * usdExchangeRate;
+    } else if (movCurrency === 'USD' && i.moneda === 'UYU') {
+      effectiveSaldo = i.saldo_pendiente / usdExchangeRate;
+    } else if (movCurrency !== (i.moneda || 'UYU')) {
+      return false;
+    }
+    return Math.abs(effectiveSaldo - amount) < 0.01;
+  });
   if (invoicesWithExactAmount.length === 1) {
     const singleMatch = invoicesWithExactAmount[0];
+    const isBimonetary4 = movCurrency !== (singleMatch.moneda || 'UYU');
 
     return {
       cliente_id: singleMatch.cliente_id,
       cliente_nombre: singleMatch.cliente_nombre,
       confianza: 82,
-      motivo: `Importe unívoco en cartera ($${amount.toLocaleString()}): Coincide exactamente con la única factura pendiente por este importe (${singleMatch.numero} de ${singleMatch.cliente_nombre})`,
-      tipo: 'exacto_factura',
+      motivo: isBimonetary4
+        ? `Importe unívoco en cartera ($${amount.toLocaleString()} ${movCurrency}): Coincide bimonetario con Factura ${singleMatch.numero} (${singleMatch.saldo_pendiente.toLocaleString()} ${singleMatch.moneda || 'UYU'}) de ${singleMatch.cliente_nombre}`
+        : `Importe unívoco en cartera ($${amount.toLocaleString()}): Coincide exactamente con la única factura pendiente por este importe (${singleMatch.numero} de ${singleMatch.cliente_nombre})`,
+      tipo: isBimonetary4 ? 'bimonetario' : 'exacto_factura',
       facturas: [{
         factura_id: singleMatch.id,
         factura_numero: singleMatch.numero,

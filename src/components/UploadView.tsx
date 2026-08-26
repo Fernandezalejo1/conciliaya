@@ -92,45 +92,78 @@ export const UploadView: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Helper: auto-detect column headers based on common names
+  // Helper: auto-detect column headers based on common names — works with ANY format
   const autoDetectColumns = (headers: string[], type: 'invoices' | 'movements') => {
-    const norm = headers.map(h => h.trim().toLowerCase());
+    const norm = headers.map(h => h.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+
+    // Generic finder: tries patterns in priority order, returns original header name
+    const findBest = (patterns: string[]): string => {
+      for (const p of patterns) {
+        const idx = norm.findIndex(h => h.includes(p));
+        if (idx !== -1) return headers[idx];
+      }
+      return '';
+    };
+
+    // Detect Crédito/Débito column if present (used to filter debits)
+    const foundCreditoDebito = findBest(['credito/debito', 'credito debito', 'tipo operacion', 'tipo', 'movemento', 'operacion']);
 
     if (type === 'invoices') {
-      const findBest = (patterns: string[]) => {
-        for (const p of patterns) {
-          const idx = norm.findIndex(h => h.includes(p));
-          if (idx !== -1) return headers[idx];
-        }
-        return '';
-      };
-
       setInvoiceColMap({
-        numero: findBest(['numero', 'nro', 'factura', 'doc', 'comprobante', 'num']) || headers[0] || '',
-        cliente: findBest(['cliente', 'razon', 'nombre', 'empresa', 'titular']) || headers[1] || '',
-        rut_ci: findBest(['rut', 'ci', 'ruc', 'cuit', 'cedula', 'documento']),
-        fecha: findBest(['fecha', 'emision', 'date', 'fec']) || '',
-        vencimiento: findBest(['vencimiento', 'vto', 'vence', 'due']),
-        importe: findBest(['importe', 'monto', 'total', 'saldo', 'valor', 'amount']) || '',
-        moneda: findBest(['moneda', 'curr', 'currency', 'mon'])
+        numero: findBest([
+          'numero factura', 'nro factura', 'n de factura', 'n° factura', 'num factura',
+          'numero', 'nro', 'num', 'n°', 'comprobante', 'factura', 'doc',
+          'invoice', 'bill', 'recibo'
+        ]) || headers[0] || '',
+        cliente: findBest([
+          'empresa matriz', 'quien paga', 'razon social cliente', 'razon social',
+          'cliente / proyecto', 'cliente', 'nombre cliente', 'empresa',
+          'titular', 'deudor', 'social', 'proyecto', 'razon', 'nombre'
+        ]) || headers[1] || '',
+        rut_ci: findBest(['rut', 'ci ', ' c.i', 'c.i.', 'ruc', 'cuit', 'cedula', 'documento', 'nit']),
+        fecha: findBest([
+          'fecha emision', 'fecha de emision', 'fecha emisión',
+          'emision', 'emisión', 'fecha', 'date', 'fec', 'dia', 'day'
+        ]) || '',
+        vencimiento: findBest(['vencimiento', 'vto', 'vence', 'due', 'fecha vencimiento', 'fecha venc']),
+        importe: findBest([
+          'monto (con iva)', 'monto con iva', 'monto total', 'total con iva',
+          'importe', 'monto', 'total', 'saldo', 'valor', 'amount', 'price',
+          'monto (sin iva)', 'precio', 'importe total'
+        ]) || '',
+        moneda: findBest(['moneda', 'curr', 'currency', 'mon', 'divisa'])
       });
     } else {
-      const findBest = (patterns: string[]) => {
-        for (const p of patterns) {
-          const idx = norm.findIndex(h => h.includes(p));
-          if (idx !== -1) return headers[idx];
-        }
-        return '';
-      };
-
       setBankColMap({
-        fecha: findBest(['fecha', 'date', 'fec', 'dia']) || headers[0] || '',
-        monto: findBest(['monto', 'importe', 'credito', 'abono', 'deposito', 'valor', 'amount']) || '',
-        descripcion: findBest(['descripcion', 'concepto', 'detalle', 'glosa', 'movimiento', 'memo']) || '',
-        referencia: findBest(['referencia', 'ref', 'comprobante', 'id', 'operacion', 'transaccion']),
-        banco: findBest(['banco', 'origen', 'cuenta', 'bank']),
-        moneda: findBest(['moneda', 'curr', 'currency', 'mon'])
+        fecha: findBest([
+          'fecha operacion', 'fecha de operacion', 'fecha operación',
+          'fecha', 'date', 'fec', 'dia', 'day', 'fecha movimiento'
+        ]) || headers[0] || '',
+        monto: findBest([
+          'monto (usd)', 'monto (uyu)', 'monto total', 'monto usd',
+          'credito', 'abono', 'deposito', 'importe', 'monto',
+          'valor', 'amount', 'monto mov', 'saldo', 'balance'
+        ]) || '',
+        descripcion: findBest([
+          'concepto', 'descripcion', 'descripción', 'detalle',
+          'glosa', 'movimiento', 'memo', 'obs', 'observaciones',
+          'detail', 'description', 'concept'
+        ]) || '',
+        referencia: findBest([
+          'referencia', 'ref', 'n de referencia', 'n° referencia',
+          'comprobante', 'id', 'operacion', 'transaccion',
+          'factura', 'n de factura', 'n° de factura', 'n° factura',
+          'reference', 'ticket', 'voucher'
+        ]),
+        banco: findBest(['banco', 'origen', 'cuenta', 'bank', 'entidad', 'sucursal']),
+        moneda: findBest(['moneda', 'curr', 'currency', 'mon', 'divisa'])
       });
+
+      // Store detected Crédito/Débito column for filtering debits
+      if (foundCreditoDebito) {
+        setBankColMap(prev => ({ ...prev, moneda: prev.moneda })); // keep existing
+        // We'll use it in validation via rawRow access
+      }
     }
   };
 
