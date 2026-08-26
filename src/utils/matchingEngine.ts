@@ -1,6 +1,61 @@
 import { BankMovement, Client, Company, Invoice, LearnedAlias, SuggestedMatch } from '../types';
 
 /**
+ * Extracts clean client name from bank description by removing all noise:
+ * prefixes (PAGO, INVEST), suffixes (SALE, ALQUILER, PAYS), legal entity
+ * types + addresses, slash references, trailing digits.
+ *
+ * This is the KEY function that makes reconciliation work with messy data.
+ */
+export function extractClientNameFromBankDesc(desc: string): string {
+  let text = normalizeText(desc);
+
+  // 1. Strip common transaction prefixes (PAGO, INVEST, etc.)
+  const txPrefixes = ['PAGO', 'INVEST', 'INVERSIONES', 'DEP', 'DEPOSITO', 'ABONO', 'TRANSFERENCIA', 'TRANSF'];
+  for (const pfx of txPrefixes) {
+    if (text.startsWith(pfx + ' ')) {
+      text = text.substring(pfx.length).trim();
+      break;
+    }
+  }
+
+  // 2. Strip common transaction suffixes (SALE, ALQUILER, PAYS, etc.)
+  const txSuffixes = ['SALE', 'PAYS', 'ALQUILER', 'ALQUILERES'];
+  for (const suf of txSuffixes) {
+    const regex = new RegExp('\\s+' + suf + '\\s*$', 'i');
+    if (regex.test(text)) {
+      text = text.replace(regex, '').trim();
+      break;
+    }
+  }
+
+  // 3. After legal entity suffix: strip everything after (addresses, refs)
+  // "PILARES SA VAZQUEZ LEDESMA 295" → "PILARES SA"
+  // "EOLIA CONSTRUCCIONES S.A. /35" → "EOLIA CONSTRUCCIONES S.A."
+  const suffixPattern = /\b(SAS?|S\s*A|S\s*R\s*L|S\s*A\s*S|L\s*T\s*D\s*A|E\s*I\s*R\s*L)\b\.?\s+.+$/i;
+  const m = text.match(suffixPattern);
+  if (m) {
+    text = (text.substring(0, text.indexOf(m[0])) + ' ' + m[1]).replace(/\s+/g, ' ').trim();
+  }
+
+  // 4. Slash + reference number: "SOLVENTA SA /4096546" → "SOLVENTA SA"
+  // Use raw desc before normalization stripped the /
+  const rawSlash = desc.match(/^(.+?)\s*\/\d[\d\s]*$/i);
+  if (rawSlash && rawSlash[1]) {
+    const cleaned = normalizeText(rawSlash[1]).trim();
+    if (cleaned && cleaned.length >= 2) text = cleaned;
+  }
+
+  // 5. Trailing digits (addresses, refs): "BRISOL SA 123" → "BRISOL SA"
+  text = text.replace(/\s+\d{2,10}$/, '').trim();
+
+  // 6. Remove double spaces
+  text = text.replace(/\s+/g, ' ').trim();
+
+  return text;
+}
+
+/**
  * Normalized string cleaner: removes accents, symbols, non-alphanumeric noise,
  * and common banking stop words.
  */
@@ -495,6 +550,9 @@ export function matchBankMovement(
   // =========================================================================
   const scoredClients: Array<{ client: Client; score: number; matchReason: string }> = [];
 
+  // Extract clean client name from bank description (strip addresses, refs, etc.)
+  const extractedName = extractClientNameFromBankDesc(rawDesc);
+
   for (const client of clients) {
     let maxScore = 0;
     let reason = '';
@@ -508,18 +566,42 @@ export function matchBankMovement(
       }
     }
 
-    // Name similarity
     if (maxScore < 0.98) {
+      // 1. Compare extracted clean name vs client name (best for bank descriptions with addresses)
+      const extractedSim = stringSimilarity(extractedName, client.name);
+      if (extractedSim > maxScore) {
+        maxScore = extractedSim;
+        reason = `Nombre extraído del extracto ("${extractedName}") coincide con "${client.name}" (${Math.round(extractedSim * 100)}%)`;
+      }
+
+      // 2. Direct name similarity (full description vs client name)
       const nameScore = stringSimilarity(cleanDesc, client.name);
       if (nameScore > maxScore) {
         maxScore = nameScore;
         reason = `Similitud de nombre (${Math.round(nameScore * 100)}%) con "${client.name}"`;
       }
 
-      // Check client known aliases
+      // 3. Check if extracted name exactly contains client name or vice versa
+      const normClientName = normalizeText(client.name);
+      if (normClientName.length >= 3 && extractedName.includes(normClientName)) {
+        const containScore = 0.95;
+        if (containScore > maxScore) {
+          maxScore = containScore;
+          reason = `Nombre del extracto contiene "${client.name}" exactamente`;
+        }
+      }
+      if (extractedName.length >= 3 && normClientName.includes(extractedName)) {
+        const containScore = 0.93;
+        if (containScore > maxScore) {
+          maxScore = containScore;
+          reason = `"${client.name}" contiene el nombre extraído "${extractedName}"`;
+        }
+      }
+
+      // 4. Check client known aliases
       if (client.alias_conocidos && client.alias_conocidos.length > 0) {
         for (const alias of client.alias_conocidos) {
-          const aliasSim = stringSimilarity(cleanDesc, alias);
+          const aliasSim = stringSimilarity(extractedName, alias);
           if (aliasSim > maxScore) {
             maxScore = aliasSim;
             reason = `Similitud con alias registrado "${alias}" (${Math.round(aliasSim * 100)}%)`;

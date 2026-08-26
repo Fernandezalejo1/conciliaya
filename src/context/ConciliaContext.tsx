@@ -162,7 +162,11 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [company, clients, invoices, bankMovements, learnedAliases, paymentApplications, clientCredits, auditLogs, officialReceipts, accountingEntries, emailReminderLogs]);
 
   // Recalculate suggestions when movements or invoices change
-  const runMatchingEngine = () => {
+  const runMatchingEngine = (overrideInvoices?: Invoice[], overrideClients?: Client[], overrideAliases?: LearnedAlias[]) => {
+    const inv = overrideInvoices || invoices;
+    const cli = overrideClients || clients;
+    const aliases = overrideAliases || learnedAliases;
+
     setBankMovements(prevMovements => {
       return prevMovements.map(mov => {
         if (mov.estado_conciliacion === 'conciliado_manual') {
@@ -171,9 +175,9 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         const suggestion = matchBankMovement(
           mov,
-          invoices,
-          clients,
-          learnedAliases,
+          inv,
+          cli,
+          aliases,
           company.autoMatchThreshold,
           company.usdExchangeRate
         );
@@ -996,33 +1000,45 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const importInvoices = (newInvoices: Invoice[]) => {
-    setInvoices(prev => [...newInvoices, ...prev]);
-    setClients(prevClients => {
-      const updated = [...prevClients];
-      for (const inv of newInvoices) {
-        const idx = updated.findIndex(c => c.id === inv.cliente_id || c.name.toLowerCase() === inv.cliente_nombre.toLowerCase());
-        if (idx === -1) {
-          updated.push({
-            id: inv.cliente_id,
-            name: inv.cliente_nombre,
-            rut_ci: inv.cliente_rut || '',
-            alias_conocidos: [inv.cliente_nombre.toUpperCase()],
-            totalInvoiced: inv.importe,
-            totalPaid: 0,
-            currentBalance: inv.saldo_pendiente,
-            creditBalance: 0
-          });
-        } else {
-          updated[idx].totalInvoiced += inv.importe;
-          updated[idx].currentBalance += inv.saldo_pendiente;
-        }
+    const updatedInvoices = [...newInvoices, ...invoices];
+    setInvoices(updatedInvoices);
+
+    const updatedClients = [...clients];
+    for (const inv of newInvoices) {
+      const idx = updatedClients.findIndex(c => c.id === inv.cliente_id || c.name.toLowerCase() === inv.cliente_nombre.toLowerCase());
+      if (idx === -1) {
+        updatedClients.push({
+          id: inv.cliente_id,
+          name: inv.cliente_nombre,
+          rut_ci: inv.cliente_rut || '',
+          alias_conocidos: [inv.cliente_nombre.toUpperCase()],
+          totalInvoiced: inv.importe,
+          totalPaid: 0,
+          currentBalance: inv.saldo_pendiente,
+          creditBalance: 0
+        });
+      } else {
+        updatedClients[idx] = {
+          ...updatedClients[idx],
+          totalInvoiced: updatedClients[idx].totalInvoiced + inv.importe,
+          currentBalance: updatedClients[idx].currentBalance + inv.saldo_pendiente
+        };
       }
-      return updated;
-    });
+    }
+    setClients(updatedClients);
+
+    // Re-run matching with fresh data immediately
+    setTimeout(() => {
+      runMatchingEngine(updatedInvoices, updatedClients, learnedAliases);
+    }, 50);
   };
 
   const importBankMovements = (newMovements: BankMovement[]) => {
     setBankMovements(prev => [...newMovements, ...prev]);
+    // Re-run matching with fresh data after state update
+    setTimeout(() => {
+      runMatchingEngine(invoices, clients, learnedAliases);
+    }, 50);
   };
 
   // Log email reminder sent
@@ -1140,10 +1156,13 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setEmailReminderLogs([]);
   };
 
+  // Re-run matching engine whenever invoices, clients, or aliases change
   useEffect(() => {
-    runMatchingEngine();
+    if (invoices.length > 0 && bankMovements.length > 0) {
+      runMatchingEngine(invoices, clients, learnedAliases);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [invoices, clients, learnedAliases]);
 
   return (
     <ConciliaContext.Provider
