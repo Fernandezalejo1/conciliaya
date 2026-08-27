@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
   AccountingEntry,
   AuditLog,
@@ -164,6 +164,22 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem(STORAGE_KEY + '_accounting', JSON.stringify(accountingEntries));
     localStorage.setItem(STORAGE_KEY + '_email_logs', JSON.stringify(emailReminderLogs));
   }, [company, clients, invoices, bankMovements, learnedAliases, paymentApplications, clientCredits, auditLogs, officialReceipts, accountingEntries, emailReminderLogs]);
+
+  // Live snapshots for confirmMatch/manualMatch/confirmAllAutoMatches to read and write.
+  // Reading `invoices`/`accountingEntries.length` straight from React state is not safe
+  // here: two "Confirmar" clicks fired close enough together can both run before React
+  // commits the first one's state update and re-renders (React batches same-tick updates
+  // together), so both calls would still see the SAME closure snapshot — over-crediting
+  // an invoice, or asiento_numero/numero_recibo colliding. Refs are mutated immediately
+  // and are visible to the very next call no matter when React gets around to rendering.
+  const invoicesRef = useRef<Invoice[]>(invoices);
+  useEffect(() => { invoicesRef.current = invoices; }, [invoices]);
+
+  const entrySeqRef = useRef<number>(accountingEntries.length);
+  useEffect(() => { entrySeqRef.current = Math.max(entrySeqRef.current, accountingEntries.length); }, [accountingEntries.length]);
+
+  const receiptSeqRef = useRef<number>(officialReceipts.length);
+  useEffect(() => { receiptSeqRef.current = Math.max(receiptSeqRef.current, officialReceipts.length); }, [officialReceipts.length]);
 
   // Recalculate suggestions when movements or invoices change
   const runMatchingEngine = (overrideInvoices?: Invoice[], overrideClients?: Client[], overrideAliases?: LearnedAlias[]) => {
@@ -599,11 +615,20 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const withholding = withholdingAmount !== undefined ? withholdingAmount : (sugerencia.retencion_estimada || 0);
     const bankFee = bankFeeAmount !== undefined ? bankFeeAmount : (sugerencia.gasto_bancario_estimado || 0);
 
-    const entryNumber = `AST-${new Date().getFullYear()}-${String(accountingEntries.length + 1).padStart(5, '0')}`;
-    const receiptNumber = `REC-${new Date().getFullYear()}-${String(officialReceipts.length + 101).padStart(5, '0')}`;
+    entrySeqRef.current += 1;
+    receiptSeqRef.current += 1;
+    const entryNumber = `AST-${new Date().getFullYear()}-${String(entrySeqRef.current).padStart(5, '0')}`;
+    const receiptNumber = `REC-${new Date().getFullYear()}-${String(receiptSeqRef.current + 100).padStart(5, '0')}`;
 
-    const result = computeConfirmationEffects(mov, sugerencia, client, invoices, entryNumber, receiptNumber, withholding, bankFee);
+    const result = computeConfirmationEffects(mov, sugerencia, client, invoicesRef.current, entryNumber, receiptNumber, withholding, bankFee);
 
+    if (result.entry.concepto.startsWith('BLOCKED')) {
+      // Don't burn a sequence number on an entry that never gets persisted.
+      entrySeqRef.current -= 1;
+      receiptSeqRef.current -= 1;
+    }
+
+    invoicesRef.current = result.updatedInvoices;
     setInvoices(result.updatedInvoices);
 
     if (result.excess > 0) {
@@ -704,9 +729,9 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const autos = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.sugerencia);
     if (autos.length === 0) return 0;
 
-    let invoicesSnapshot = invoices;
-    let entryCounter = accountingEntries.length;
-    let receiptCounter = officialReceipts.length;
+    let invoicesSnapshot = invoicesRef.current;
+    let entryCounter = entrySeqRef.current;
+    let receiptCounter = receiptSeqRef.current;
 
     const allPaymentApps: PaymentApplication[] = [];
     const allReceipts: OfficialReceipt[] = [];
@@ -844,6 +869,10 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
     }
 
+    invoicesRef.current = invoicesSnapshot;
+    entrySeqRef.current = entryCounter;
+    receiptSeqRef.current = receiptCounter;
+
     setInvoices(invoicesSnapshot);
     if (allPaymentApps.length > 0) setPaymentApplications(prev => [...prev, ...allPaymentApps]);
     if (allReceipts.length > 0) setOfficialReceipts(prev => [...allReceipts, ...prev]);
@@ -889,7 +918,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // snapshot BEFORE calling setInvoices — pushing to these arrays from inside the
     // setInvoices updater and reading them right after (like the old code did) is not
     // safe: React doesn't guarantee that updater runs before this function continues.
-    const updatedInvoices = [...invoices];
+    const updatedInvoices = [...invoicesRef.current];
     const newPaymentApps: PaymentApplication[] = [];
     const affectedInvoicesDetails: Array<{ factura_id: string; numero: string; monto_aplicado: number }> = [];
     const receiptInvoicesList: Array<{ factura_id: string; factura_numero: string; monto_aplicado: number; saldo_restante: number }> = [];
@@ -936,6 +965,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
     }
 
+    invoicesRef.current = updatedInvoices;
     setInvoices(updatedInvoices);
 
     // Handle excess credit
@@ -956,8 +986,10 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     // Generate Official Receipt and Accounting Entry
-    const entryNumber = `AST-${new Date().getFullYear()}-${String(accountingEntries.length + 1).padStart(5, '0')}`;
-    const receiptNumber = `REC-${new Date().getFullYear()}-${String(officialReceipts.length + 101).padStart(5, '0')}`;
+    entrySeqRef.current += 1;
+    receiptSeqRef.current += 1;
+    const entryNumber = `AST-${new Date().getFullYear()}-${String(entrySeqRef.current).padStart(5, '0')}`;
+    const receiptNumber = `REC-${new Date().getFullYear()}-${String(receiptSeqRef.current + 100).padStart(5, '0')}`;
     const { receipt, entry } = createReceiptAndJournal(
       mov,
       client,
@@ -971,6 +1003,9 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!entry.concepto.startsWith('BLOCKED')) {
       setOfficialReceipts(prev => [receipt, ...prev]);
       setAccountingEntries(prev => [entry, ...prev]);
+    } else {
+      entrySeqRef.current -= 1;
+      receiptSeqRef.current -= 1;
     }
 
     // Update Client Balances
@@ -1162,20 +1197,20 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     // 1. Restore invoices balances
     if (facturas_afectadas && facturas_afectadas.length > 0) {
-      setInvoices(prevInvoices => {
-        return prevInvoices.map(inv => {
-          const affected = facturas_afectadas.find(f => f.factura_id === inv.id);
-          if (affected) {
-            const restoredSaldo = Math.min(inv.importe, inv.saldo_pendiente + affected.monto_aplicado);
-            return {
-              ...inv,
-              saldo_pendiente: restoredSaldo,
-              estado: Math.abs(restoredSaldo - inv.importe) < 0.01 ? 'pendiente' : (restoredSaldo <= 0.01 ? 'pagada' : 'parcial')
-            };
-          }
-          return inv;
-        });
+      const restoredInvoices = invoicesRef.current.map(inv => {
+        const affected = facturas_afectadas.find(f => f.factura_id === inv.id);
+        if (affected) {
+          const restoredSaldo = Math.min(inv.importe, inv.saldo_pendiente + affected.monto_aplicado);
+          return {
+            ...inv,
+            saldo_pendiente: restoredSaldo,
+            estado: Math.abs(restoredSaldo - inv.importe) < 0.01 ? 'pendiente' : (restoredSaldo <= 0.01 ? 'pagada' : 'parcial')
+          } as Invoice;
+        }
+        return inv;
       });
+      invoicesRef.current = restoredInvoices;
+      setInvoices(restoredInvoices);
     }
 
     // 2. Remove credits generated by this movement
@@ -1260,12 +1295,12 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Apply existing client credit to an open invoice
   const applyCreditToInvoice = (creditId: string, invoiceId: string, amountToApply: number) => {
     const credit = clientCredits.find(c => c.id === creditId);
-    const invoice = invoices.find(i => i.id === invoiceId);
+    const invoice = invoicesRef.current.find(i => i.id === invoiceId);
     if (!credit || !invoice || amountToApply <= 0) return;
 
     const actualApply = Math.min(amountToApply, credit.saldo_disponible, invoice.saldo_pendiente);
 
-    setInvoices(prev => prev.map(i => {
+    const updatedInvoices = invoicesRef.current.map(i => {
       if (i.id === invoiceId) {
         const newSaldo = Math.max(0, i.saldo_pendiente - actualApply);
         return {
@@ -1275,7 +1310,9 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         };
       }
       return i;
-    }));
+    });
+    invoicesRef.current = updatedInvoices;
+    setInvoices(updatedInvoices);
 
     setClientCredits(prev => prev.map(c => {
       if (c.id === creditId) {
@@ -1312,7 +1349,8 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       exchangeDiffGainCode: '4.2.1.01',
       exchangeDiffLossCode: '5.2.1.01'
     };
-    const entryNumber = `AST-${new Date().getFullYear()}-${String(accountingEntries.length + 1).padStart(5, '0')}`;
+    entrySeqRef.current += 1;
+    const entryNumber = `AST-${new Date().getFullYear()}-${String(entrySeqRef.current).padStart(5, '0')}`;
     const creditApplicationEntry: AccountingEntry = {
       id: 'ast_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
       asiento_numero: entryNumber,
@@ -1416,6 +1454,7 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
     }
     const updatedInvoices = Array.from(existingByComposite.values());
+    invoicesRef.current = updatedInvoices;
     setInvoices(updatedInvoices);
 
     const updatedClients = [...clients];
@@ -1589,6 +1628,9 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCompany(initialCompany);
     setClients(initialClients);
     setInvoices(initialInvoices);
+    invoicesRef.current = initialInvoices;
+    entrySeqRef.current = 0;
+    receiptSeqRef.current = 0;
     setBankMovements(initialBankMovements);
     setLearnedAliases(initialLearnedAliases);
     setPaymentApplications([]);
@@ -1602,6 +1644,9 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const clearAllData = () => {
     localStorage.clear();
     setInvoices([]);
+    invoicesRef.current = [];
+    entrySeqRef.current = 0;
+    receiptSeqRef.current = 0;
     setBankMovements([]);
     setPaymentApplications([]);
     setClientCredits([]);
