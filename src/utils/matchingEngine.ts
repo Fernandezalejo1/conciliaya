@@ -684,7 +684,12 @@ export function matchBankMovement(
     const combo = findInvoiceCombination(clientInvoices, amount);
     if (combo && combo.length > 1) {
       const confidence = Math.min(92, Math.round(best.score * 95));
-      for (const c of combo) consumeRemaining(c.id, getRemaining(c));
+      // Capture each invoice's remaining balance BEFORE consuming it — consumeRemaining
+      // mutates the shared map, so calling getRemaining(c) again afterward (to build the
+      // facturas array below) would read the already-zeroed value and silently produce
+      // monto_a_aplicar: 0 for every invoice in the combo.
+      const comboRemaining = new Map(combo.map(c => [c.id, getRemaining(c)]));
+      for (const c of combo) consumeRemaining(c.id, comboRemaining.get(c.id)!);
       return {
         cliente_id: best.client.id,
         cliente_nombre: best.client.name,
@@ -695,8 +700,8 @@ export function matchBankMovement(
           factura_id: c.id,
           factura_numero: c.numero,
           importe: c.importe,
-          saldo_pendiente: getRemaining(c),
-          monto_a_aplicar: getRemaining(c),
+          saldo_pendiente: comboRemaining.get(c.id)!,
+          monto_a_aplicar: comboRemaining.get(c.id)!,
           moneda: c.moneda
         }))
       };
