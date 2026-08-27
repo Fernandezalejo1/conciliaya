@@ -368,9 +368,29 @@ export function matchBankMovement(
 
   // PRE-PASS: Check if this movement exactly matches an already-paid invoice.
   // If so, mark as "ya_conciliado" — don't create new payments.
+  // IMPORTANT: this must check the invoice's real persisted saldo_pendiente, not
+  // getRemaining(inv) — that reads the shared in-batch simulation map, which by this
+  // point may have been zeroed by an EARLIER movement in the same matching run that
+  // happened to close a *different* invoice sharing this exact amount (recurring
+  // monthly invoices for the same amount are common). Using the live simulated value
+  // here falsely flags later, genuinely-unpaid movements as "already reconciled" and
+  // silently drops them — no entry, no receipt, no payment application.
   for (const inv of pendingInvoices) {
     const invTotal = (inv.monto_con_iva || inv.importe);
-    if (Math.abs(amount - invTotal) < 0.01 && (inv.estado === 'pagada' || getRemaining(inv) <= 0.01)) {
+    if (Math.abs(amount - invTotal) < 0.01 && (inv.estado === 'pagada' || inv.saldo_pendiente <= 0.01)) {
+      // An amount coincidence alone isn't enough — pendingInvoices spans every client,
+      // so without this check any bank line whose amount happens to match SOME already-
+      // closed invoice anywhere in the portfolio gets silently attributed to that
+      // invoice's client, even when the description clearly names someone else (e.g.
+      // "Alquileres Polaris alquiler" $7,320 matching Bracco's already-paid A9, also
+      // $7,320). Require the description to actually reference this invoice's client.
+      const invClientNames = [inv.cliente_nombre, ...(inv.cliente_nombre_alt || [])].filter(Boolean);
+      const isRelevant = invClientNames.some(name => {
+        const normName = normalizeText(name);
+        return normName.length >= 3 && (cleanDesc.includes(normName) || stringSimilarity(cleanDesc, normName) > 0.5);
+      });
+      if (!isRelevant) continue;
+
       // Find the client for this invoice
       const client = clients.find(c => c.id === inv.cliente_id) || null;
       return {
