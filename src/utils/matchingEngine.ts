@@ -825,6 +825,7 @@ export function runFIFOAllocation(
 
   // Only process credit movements
   const creditMovs = movements.filter(m => m.es_credito && m.monto > 0);
+  console.log(`[ConciliaYA] FIFO: ${movements.length} total movements, ${creditMovs.length} credit movements (es_credito filter)`);
 
   // Group movements by client, also tracking the extracted name for sub-pool matching
   const clientMovements = new Map<string, { mov: BankMovement; extractedName: string }[]>();
@@ -1125,6 +1126,43 @@ export function runFIFOAllocation(
         continue;
       }
 
+      // PRIORITY 2b: Cross-check combination against FULL pool (not just available)
+      // When earlier movements consumed invoices via exact 1:1, those invoices are excluded
+      // from availablePool. But a later movement might form an exact-sum combo with them.
+      // We generate the suggestion WITHOUT consuming (no matchedInvoiceIds update) so the
+      // user sees all valid options and decides which to accept.
+      if (poolInvoices.length > availablePool.length) {
+        const fullCombo = findInvoiceCombination(poolInvoices, mov.monto);
+        if (fullCombo && fullCombo.length > 1) {
+          const hasConsumed = fullCombo.some(inv => matchedInvoiceIds.has(inv.id));
+          if (hasConsumed) {
+            const allocated: SuggestedMatch['facturas'] = [];
+            for (const inv of fullCombo) {
+              const originalSaldo = inv.saldo_pendiente;
+              allocated.push({
+                factura_id: inv.id,
+                factura_numero: inv.numero,
+                importe: inv.importe,
+                saldo_pendiente: originalSaldo,
+                monto_a_aplicar: Math.min(inv.monto_con_iva || inv.importe, originalSaldo),
+                moneda: inv.moneda
+              });
+            }
+
+            const confianza = Math.min(93, Math.round(bestScoreForMov(mov, client, clients, learnedAliases) * 100));
+            results.set(mov.id, {
+              cliente_id: client.id,
+              cliente_nombre: client.name,
+              confianza,
+              motivo: `Suma exacta de ${fullCombo.length} facturas = $${mov.monto.toLocaleString()} (${fullCombo.map(i => i.numero).join(', ')})`,
+              tipo: 'multi_factura',
+              facturas: allocated,
+            });
+            continue;
+          }
+        }
+      }
+
       // PRIORITY 3: FIFO distribution (only if no exact or sum match found)
       let remaining = mov.monto;
       const allocated: SuggestedMatch['facturas'] = [];
@@ -1169,6 +1207,10 @@ export function runFIFOAllocation(
       }
     }
   }
+
+  const matchedCount = [...results.values()].filter(r => r !== null).length;
+  const nullCount = [...results.values()].filter(r => r === null).length;
+  console.log(`[ConciliaYA] FIFO results: ${matchedCount} matched, ${nullCount} null (will fallback), ${unmatchedMovements.length} unmatched by client`);
 
   return results;
 }

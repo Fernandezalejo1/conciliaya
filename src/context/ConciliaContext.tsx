@@ -281,17 +281,21 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }));
   };
 
-  // Create official receipt and accounting entry generator helper
+  // Create official receipt and accounting entry generator helper.
+  // entryNumber/receiptNumber are passed in (not derived from accountingEntries.length /
+  // officialReceipts.length here) because those arrays reflect the last committed render,
+  // not what's about to be committed — reading them internally caused duplicate numbers
+  // whenever multiple confirmations were generated in the same batch (see confirmAllAutoMatches).
   const createReceiptAndJournal = (
     mov: BankMovement,
     client: Client,
     affectedInvoices: Array<{ factura_id: string; factura_numero: string; monto_aplicado: number; saldo_restante: number }>,
+    entryNumber: string,
+    receiptNumber: string,
     withholding: number = 0,
     bankFee: number = 0,
     excessCredit: number = 0
   ): { receipt: OfficialReceipt; entry: AccountingEntry } => {
-    const receiptNumber = `REC-${new Date().getFullYear()}-${String(officialReceipts.length + 101).padStart(5, '0')}`;
-    const entryNumber = `AST-${new Date().getFullYear()}-${String(accountingEntries.length + 1).padStart(5, '0')}`;
 
     // Date validation: no receipt/asiento can be dated before the latest affected invoice's emission date
     const movFecha = mov.fecha || new Date().toISOString().split('T')[0];
@@ -397,6 +401,11 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const totalDebito = lines.reduce((sum, l) => sum + l.debito, 0);
     const totalCredito = lines.reduce((sum, l) => sum + l.credito, 0);
 
+    console.log(`[ConciliaYA] Asiento ${entryNumber}: ${client.name} | Banco débito=$${mov.monto.toFixed(2)} | facturas=${affectedInvoices.length} | totalApplied=$${totalApplied.toFixed(2)} | excess=$${excessCredit.toFixed(2)} | débito=$${totalDebito.toFixed(2)} crédito=$${totalCredito.toFixed(2)}`, {
+      facturas: affectedInvoices.map(f => `${f.factura_numero}: $${f.monto_aplicado}`),
+      lines: lines.map(l => `${l.cuenta_nombre}: débito=$${l.debito} crédito=$${l.credito}`)
+    });
+
     // Hard validation — unbalanced asiento must never be persisted
     if (Math.abs(totalDebito - totalCredito) > 0.01) {
       console.error(`[ConciliaYA] BLOCKED unbalanced asiento ${entryNumber}: débito=$${totalDebito.toFixed(2)} crédito=$${totalCredito.toFixed(2)} diff=$${(totalDebito - totalCredito).toFixed(2)}`, {
@@ -441,6 +450,82 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
 
     return { receipt, entry };
+  };
+
+  // Pure computation of everything one confirmed movement changes: which invoices get
+  // paid down, the payment-application records, the receipt/journal entry, the excess
+  // credit and the client balance delta. Never calls setState — the caller decides how
+  // to apply the result. This is what makes confirmMatch (a single confirmation) and
+  // confirmAllAutoMatches (many confirmations in one batch) share the exact same logic
+  // without either one racing React's state-update timing: invoicesIn is threaded in and
+  // updatedInvoices threaded out explicitly, instead of relying on invoices/setInvoices.
+  const computeConfirmationEffects = (
+    mov: BankMovement,
+    sugerencia: NonNullable<BankMovement['sugerencia']>,
+    client: Client,
+    invoicesIn: Invoice[],
+    entryNumber: string,
+    receiptNumber: string,
+    withholding: number,
+    bankFee: number
+  ) => {
+    const updatedInvoices = [...invoicesIn];
+    const newPaymentApps: PaymentApplication[] = [];
+    const affectedInvoicesDetails: Array<{ factura_id: string; numero: string; monto_aplicado: number }> = [];
+    const receiptInvoicesList: Array<{ factura_id: string; factura_numero: string; monto_aplicado: number; saldo_restante: number }> = [];
+
+    for (const item of sugerencia.facturas) {
+      const invIndex = updatedInvoices.findIndex(i => i.id === item.factura_id);
+      if (invIndex === -1) continue;
+
+      const currentInv = updatedInvoices[invIndex];
+      const applyAmount = item.monto_a_aplicar;
+      const newSaldo = Math.max(0, currentInv.saldo_pendiente - applyAmount);
+      const newEstado = newSaldo <= 0.01 ? 'pagada' : 'parcial';
+
+      updatedInvoices[invIndex] = {
+        ...currentInv,
+        saldo_pendiente: newSaldo,
+        estado: newEstado
+      };
+
+      const paymentApp: PaymentApplication = {
+        id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+        movimiento_id: mov.id,
+        factura_id: currentInv.id,
+        factura_numero: currentInv.numero,
+        cliente_id: sugerencia.cliente_id,
+        cliente_nombre: client.name,
+        monto_aplicado: applyAmount,
+        moneda: currentInv.moneda || 'UYU',
+        fecha: mov.fecha || new Date().toISOString().split('T')[0],
+        confirmado_por: 'Operador Admin'
+      };
+      newPaymentApps.push(paymentApp);
+      affectedInvoicesDetails.push({ factura_id: currentInv.id, numero: currentInv.numero, monto_aplicado: applyAmount });
+      receiptInvoicesList.push({ factura_id: currentInv.id, factura_numero: currentInv.numero, monto_aplicado: applyAmount, saldo_restante: newSaldo });
+    }
+
+    // Recompute excess from actual amounts to ensure accounting balance:
+    // Debit: Banco(mov.monto) + Retenciones(withholding) + Gastos(bankFee)
+    //        = Credit: Deudores(totalAppliedToInvoices) + Anticipos(excess)
+    const totalAppliedToInvoices = newPaymentApps.reduce((sum, p) => sum + p.monto_aplicado, 0);
+    const excess = Math.max(0, Math.round((mov.monto + withholding + bankFee - totalAppliedToInvoices) * 100) / 100);
+
+    const { receipt, entry } = createReceiptAndJournal(
+      mov,
+      client,
+      receiptInvoicesList,
+      entryNumber,
+      receiptNumber,
+      withholding,
+      bankFee,
+      excess
+    );
+
+    const totalApplied = sugerencia.facturas.reduce((sum, f) => sum + f.monto_a_aplicar, 0) + withholding;
+
+    return { updatedInvoices, newPaymentApps, affectedInvoicesDetails, receipt, entry, excess, totalApplied };
   };
 
   // Confirm a Suggested Match
@@ -514,71 +599,20 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const withholding = withholdingAmount !== undefined ? withholdingAmount : (sugerencia.retencion_estimada || 0);
     const bankFee = bankFeeAmount !== undefined ? bankFeeAmount : (sugerencia.gasto_bancario_estimado || 0);
 
-    const newPaymentApps: PaymentApplication[] = [];
-    const affectedInvoicesDetails: Array<{ factura_id: string; numero: string; monto_aplicado: number }> = [];
-    const receiptInvoicesList: Array<{ factura_id: string; factura_numero: string; monto_aplicado: number; saldo_restante: number }> = [];
+    const entryNumber = `AST-${new Date().getFullYear()}-${String(accountingEntries.length + 1).padStart(5, '0')}`;
+    const receiptNumber = `REC-${new Date().getFullYear()}-${String(officialReceipts.length + 101).padStart(5, '0')}`;
 
-    // Apply payments to proposed invoices
-    setInvoices(prevInvoices => {
-      const updated = [...prevInvoices];
-      for (const item of sugerencia.facturas) {
-        const invIndex = updated.findIndex(i => i.id === item.factura_id);
-        if (invIndex !== -1) {
-          const currentInv = updated[invIndex];
-          const applyAmount = item.monto_a_aplicar;
+    const result = computeConfirmationEffects(mov, sugerencia, client, invoices, entryNumber, receiptNumber, withholding, bankFee);
 
-          const newSaldo = Math.max(0, currentInv.saldo_pendiente - applyAmount);
-          const newEstado = newSaldo <= 0.01 ? 'pagada' : 'parcial';
+    setInvoices(result.updatedInvoices);
 
-          updated[invIndex] = {
-            ...currentInv,
-            saldo_pendiente: newSaldo,
-            estado: newEstado
-          };
-
-          const paymentApp: PaymentApplication = {
-            id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
-            movimiento_id: mov.id,
-            factura_id: currentInv.id,
-            factura_numero: currentInv.numero,
-            cliente_id: sugerencia.cliente_id,
-            cliente_nombre: client.name,
-            monto_aplicado: item.monto_a_aplicar,
-            moneda: currentInv.moneda || 'UYU',
-            fecha: mov.fecha || new Date().toISOString().split('T')[0],
-            confirmado_por: 'Operador Admin'
-          };
-          newPaymentApps.push(paymentApp);
-          affectedInvoicesDetails.push({
-            factura_id: currentInv.id,
-            numero: currentInv.numero,
-            monto_aplicado: item.monto_a_aplicar
-          });
-          receiptInvoicesList.push({
-            factura_id: currentInv.id,
-            factura_numero: currentInv.numero,
-            monto_aplicado: item.monto_a_aplicar,
-            saldo_restante: newSaldo
-          });
-        }
-      }
-      return updated;
-    });
-
-    // Handle excess credit if present
-    // Recompute excess from actual amounts to ensure accounting balance:
-    // Debit: Banco(mov.monto) + Retenciones(withholding) + Gastos(bankFee)
-    //        = Credit: Deudores(totalApplied) + Anticipos(excess)
-    // So: excess = mov.monto + withholding + bankFee - totalApplied
-    const totalAppliedToInvoices = newPaymentApps.reduce((sum, p) => sum + p.monto_aplicado, 0);
-    const excess = Math.max(0, Math.round((mov.monto + withholding + bankFee - totalAppliedToInvoices) * 100) / 100);
-    if (excess > 0) {
+    if (result.excess > 0) {
       const newCredit: ClientCredit = {
         id: 'cred_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
         cliente_id: sugerencia.cliente_id,
         cliente_nombre: client.name,
-        monto_original: excess,
-        saldo_disponible: excess,
+        monto_original: result.excess,
+        saldo_disponible: result.excess,
         moneda: mov.moneda || 'UYU',
         origen_movimiento_id: mov.id,
         fecha: mov.fecha || new Date().toISOString().split('T')[0],
@@ -588,29 +622,19 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setClientCredits(prev => [newCredit, ...prev]);
     }
 
-    // Generate Official Receipt and Accounting Entry
-    const { receipt, entry } = createReceiptAndJournal(
-      mov,
-      client,
-      receiptInvoicesList,
-      withholding,
-      bankFee,
-      excess
-    );
-    if (!entry.concepto.startsWith('BLOCKED')) {
-      setOfficialReceipts(prev => [receipt, ...prev]);
-      setAccountingEntries(prev => [entry, ...prev]);
+    if (!result.entry.concepto.startsWith('BLOCKED')) {
+      setOfficialReceipts(prev => [result.receipt, ...prev]);
+      setAccountingEntries(prev => [result.entry, ...prev]);
     }
 
     // Update Client Balances
-    const totalApplied = sugerencia.facturas.reduce((sum, f) => sum + f.monto_a_aplicar, 0) + withholding;
     setClients(prevClients => prevClients.map(c => {
       if (c.id === sugerencia.cliente_id) {
         return {
           ...c,
-          totalPaid: c.totalPaid + totalApplied,
-          currentBalance: Math.max(0, c.currentBalance - totalApplied),
-          creditBalance: c.creditBalance + excess
+          totalPaid: c.totalPaid + result.totalApplied,
+          currentBalance: Math.max(0, c.currentBalance - result.totalApplied),
+          creditBalance: c.creditBalance + result.excess
         };
       }
       return c;
@@ -624,18 +648,18 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           estado_conciliacion: 'conciliado_manual',
           fecha_conciliacion: new Date().toISOString(),
           conciliado_por: 'Operador Admin',
-          aplicaciones: newPaymentApps,
-          saldo_a_favor_generado: excess > 0 ? excess : undefined,
+          aplicaciones: result.newPaymentApps,
+          saldo_a_favor_generado: result.excess > 0 ? result.excess : undefined,
           retencion_monto: withholding > 0 ? withholding : undefined,
           gasto_bancario_monto: bankFee > 0 ? bankFee : undefined,
-          recibo_id: receipt.id,
-          asiento_id: entry.id
+          recibo_id: result.receipt.id,
+          asiento_id: result.entry.id
         };
       }
       return m;
     }));
 
-    setPaymentApplications(prev => [...prev, ...newPaymentApps]);
+    setPaymentApplications(prev => [...prev, ...result.newPaymentApps]);
 
     // Record learned alias
     const aliasToLearn = customAliasText || mov.descripcion_cruda;
@@ -649,19 +673,19 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       accion: 'confirm_suggested',
       entidad: 'movimiento',
       entidad_id: mov.id,
-      descripcion: `Conciliado pago de $${mov.monto.toLocaleString()} ${mov.moneda || 'UYU'} para ${client.name} (Emitido ${receipt.numero_recibo})`,
+      descripcion: `Conciliado pago de $${mov.monto.toLocaleString()} ${mov.moneda || 'UYU'} para ${client.name} (Emitido ${result.receipt.numero_recibo})`,
       detalles: {
         movimiento_id: mov.id,
         cliente_id: sugerencia.cliente_id,
         cliente_nombre: client.name,
         monto: mov.monto,
-        facturas_afectadas: affectedInvoicesDetails,
-        saldo_a_favor: excess > 0 ? excess : undefined,
+        facturas_afectadas: result.affectedInvoicesDetails,
+        saldo_a_favor: result.excess > 0 ? result.excess : undefined,
         retencion: withholding > 0 ? withholding : undefined,
         gasto_bancario: bankFee > 0 ? bankFee : undefined,
         nuevo_alias: aliasToLearn,
-        recibo_id: receipt.id,
-        asiento_id: entry.id
+        recibo_id: result.receipt.id,
+        asiento_id: result.entry.id
       },
       revertible: true,
       reverted: false
@@ -669,14 +693,178 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setAuditLogs(prev => [audit, ...prev]);
   };
 
-  // Bulk confirm all Automatic matches
+  // Bulk confirm all Automatic matches.
+  // Threads a local invoices snapshot + entry/receipt counters through the whole batch
+  // instead of calling confirmMatch() in a loop — looping confirmMatch would have every
+  // iteration read the SAME pre-batch `invoices`/`accountingEntries.length` closure
+  // (React doesn't re-render between synchronous calls in one event), so two auto-matches
+  // touching the same invoice would both compute their allocation against its original
+  // balance, and every entry in the batch would get the same asiento/recibo number.
   const confirmAllAutoMatches = (): number => {
     const autos = bankMovements.filter(m => m.estado_conciliacion === 'auto' && m.sugerencia);
     if (autos.length === 0) return 0;
 
-    autos.forEach(m => {
-      confirmMatch(m.id);
-    });
+    let invoicesSnapshot = invoices;
+    let entryCounter = accountingEntries.length;
+    let receiptCounter = officialReceipts.length;
+
+    const allPaymentApps: PaymentApplication[] = [];
+    const allReceipts: OfficialReceipt[] = [];
+    const allEntries: AccountingEntry[] = [];
+    const allCredits: ClientCredit[] = [];
+    const allAudits: AuditLog[] = [];
+    const movementPatches = new Map<string, Partial<BankMovement>>();
+    const clientDeltas = new Map<string, { totalApplied: number; excess: number }>();
+    const aliasUpdates: Array<{ text: string; clientId: string; clientName: string }> = [];
+
+    for (const mov of autos) {
+      const sugerencia = mov.sugerencia!;
+      const client = clients.find(c => c.id === sugerencia.cliente_id) || {
+        id: sugerencia.cliente_id,
+        name: sugerencia.cliente_nombre,
+        rut_ci: '',
+        alias_conocidos: [],
+        totalInvoiced: 0,
+        totalPaid: 0,
+        currentBalance: 0,
+        creditBalance: 0
+      } as Client;
+
+      if (sugerencia.tipo === 'ya_conciliado') {
+        movementPatches.set(mov.id, {
+          estado_conciliacion: 'conciliado_manual',
+          fecha_conciliacion: new Date().toISOString(),
+          conciliado_por: 'Operador Admin',
+          cliente_sugerido_id: sugerencia.cliente_id,
+          cliente_sugerido_name: sugerencia.cliente_nombre,
+          confianza: 100,
+          motivo_sugerencia: sugerencia.motivo
+        });
+        aliasUpdates.push({ text: mov.descripcion_cruda, clientId: sugerencia.cliente_id, clientName: client.name });
+        allAudits.push({
+          id: 'aud_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+          fecha: new Date().toISOString(),
+          usuario: 'Operador Admin',
+          accion: 'confirm_suggested',
+          entidad: 'movimiento',
+          entidad_id: mov.id,
+          descripcion: `Confirmado como ya conciliado: $${mov.monto.toLocaleString()} ${mov.moneda || 'UYU'} para ${client.name} (${sugerencia.motivo})`,
+          detalles: {
+            movimiento_id: mov.id,
+            cliente_id: sugerencia.cliente_id,
+            cliente_nombre: client.name,
+            monto: mov.monto,
+            facturas_afectadas: []
+          },
+          revertible: false,
+          reverted: false
+        });
+        continue;
+      }
+
+      const withholding = sugerencia.retencion_estimada || 0;
+      const bankFee = sugerencia.gasto_bancario_estimado || 0;
+
+      entryCounter++;
+      receiptCounter++;
+      const entryNumber = `AST-${new Date().getFullYear()}-${String(entryCounter).padStart(5, '0')}`;
+      const receiptNumber = `REC-${new Date().getFullYear()}-${String(receiptCounter + 100).padStart(5, '0')}`;
+
+      const result = computeConfirmationEffects(mov, sugerencia, client, invoicesSnapshot, entryNumber, receiptNumber, withholding, bankFee);
+      invoicesSnapshot = result.updatedInvoices;
+      allPaymentApps.push(...result.newPaymentApps);
+
+      if (!result.entry.concepto.startsWith('BLOCKED')) {
+        allReceipts.push(result.receipt);
+        allEntries.push(result.entry);
+      } else {
+        // Don't burn a sequence number on an entry that never gets persisted.
+        entryCounter--;
+        receiptCounter--;
+      }
+
+      if (result.excess > 0) {
+        allCredits.push({
+          id: 'cred_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+          cliente_id: sugerencia.cliente_id,
+          cliente_nombre: client.name,
+          monto_original: result.excess,
+          saldo_disponible: result.excess,
+          moneda: mov.moneda || 'UYU',
+          origen_movimiento_id: mov.id,
+          fecha: mov.fecha || new Date().toISOString().split('T')[0],
+          estado: 'disponible',
+          motivo: `Sobrante de transferencia bancaria (${mov.referencia || mov.id})`
+        });
+      }
+
+      const prevDelta = clientDeltas.get(sugerencia.cliente_id) || { totalApplied: 0, excess: 0 };
+      clientDeltas.set(sugerencia.cliente_id, {
+        totalApplied: prevDelta.totalApplied + result.totalApplied,
+        excess: prevDelta.excess + result.excess
+      });
+
+      movementPatches.set(mov.id, {
+        estado_conciliacion: 'conciliado_manual',
+        fecha_conciliacion: new Date().toISOString(),
+        conciliado_por: 'Operador Admin',
+        aplicaciones: result.newPaymentApps,
+        saldo_a_favor_generado: result.excess > 0 ? result.excess : undefined,
+        retencion_monto: withholding > 0 ? withholding : undefined,
+        gasto_bancario_monto: bankFee > 0 ? bankFee : undefined,
+        recibo_id: result.receipt.id,
+        asiento_id: result.entry.id
+      });
+
+      aliasUpdates.push({ text: mov.descripcion_cruda, clientId: sugerencia.cliente_id, clientName: client.name });
+
+      allAudits.push({
+        id: 'aud_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+        fecha: new Date().toISOString(),
+        usuario: 'Operador Admin',
+        accion: 'confirm_suggested',
+        entidad: 'movimiento',
+        entidad_id: mov.id,
+        descripcion: `Conciliado pago de $${mov.monto.toLocaleString()} ${mov.moneda || 'UYU'} para ${client.name} (Emitido ${result.receipt.numero_recibo})`,
+        detalles: {
+          movimiento_id: mov.id,
+          cliente_id: sugerencia.cliente_id,
+          cliente_nombre: client.name,
+          monto: mov.monto,
+          facturas_afectadas: result.affectedInvoicesDetails,
+          saldo_a_favor: result.excess > 0 ? result.excess : undefined,
+          retencion: withholding > 0 ? withholding : undefined,
+          gasto_bancario: bankFee > 0 ? bankFee : undefined,
+          nuevo_alias: mov.descripcion_cruda,
+          recibo_id: result.receipt.id,
+          asiento_id: result.entry.id
+        },
+        revertible: true,
+        reverted: false
+      });
+    }
+
+    setInvoices(invoicesSnapshot);
+    if (allPaymentApps.length > 0) setPaymentApplications(prev => [...prev, ...allPaymentApps]);
+    if (allReceipts.length > 0) setOfficialReceipts(prev => [...allReceipts, ...prev]);
+    if (allEntries.length > 0) setAccountingEntries(prev => [...allEntries, ...prev]);
+    if (allCredits.length > 0) setClientCredits(prev => [...allCredits, ...prev]);
+    if (clientDeltas.size > 0) {
+      setClients(prev => prev.map(c => {
+        const delta = clientDeltas.get(c.id);
+        if (!delta) return c;
+        return {
+          ...c,
+          totalPaid: c.totalPaid + delta.totalApplied,
+          currentBalance: Math.max(0, c.currentBalance - delta.totalApplied),
+          creditBalance: c.creditBalance + delta.excess
+        };
+      }));
+    }
+    setBankMovements(prev => prev.map(m => movementPatches.has(m.id) ? { ...m, ...movementPatches.get(m.id) } : m));
+    if (allAudits.length > 0) setAuditLogs(prev => [...allAudits, ...prev]);
+    for (const a of aliasUpdates) recordAlias(a.text, a.clientId, a.clientName);
+
     return autos.length;
   };
 
@@ -697,56 +885,58 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const withholding = withholdingAmount || 0;
     const bankFee = bankFeeAmount || 0;
 
+    // Compute the updated invoices array synchronously against the current `invoices`
+    // snapshot BEFORE calling setInvoices — pushing to these arrays from inside the
+    // setInvoices updater and reading them right after (like the old code did) is not
+    // safe: React doesn't guarantee that updater runs before this function continues.
+    const updatedInvoices = [...invoices];
     const newPaymentApps: PaymentApplication[] = [];
     const affectedInvoicesDetails: Array<{ factura_id: string; numero: string; monto_aplicado: number }> = [];
     const receiptInvoicesList: Array<{ factura_id: string; factura_numero: string; monto_aplicado: number; saldo_restante: number }> = [];
 
-    // Apply to selected invoices
-    setInvoices(prevInvoices => {
-      const updated = [...prevInvoices];
-      for (const item of allocations) {
-        if (item.monto <= 0) continue;
-        const invIndex = updated.findIndex(i => i.id === item.factura_id);
-        if (invIndex !== -1) {
-          const currentInv = updated[invIndex];
-          const applyAmount = item.monto;
-          const newSaldo = Math.max(0, currentInv.saldo_pendiente - applyAmount);
-          const newEstado = newSaldo <= 0.01 ? 'pagada' : 'parcial';
+    for (const item of allocations) {
+      if (item.monto <= 0) continue;
+      const invIndex = updatedInvoices.findIndex(i => i.id === item.factura_id);
+      if (invIndex !== -1) {
+        const currentInv = updatedInvoices[invIndex];
+        const applyAmount = item.monto;
+        const newSaldo = Math.max(0, currentInv.saldo_pendiente - applyAmount);
+        const newEstado = newSaldo <= 0.01 ? 'pagada' : 'parcial';
 
-          updated[invIndex] = {
-            ...currentInv,
-            saldo_pendiente: newSaldo,
-            estado: newEstado
-          };
+        updatedInvoices[invIndex] = {
+          ...currentInv,
+          saldo_pendiente: newSaldo,
+          estado: newEstado
+        };
 
-          const paymentApp: PaymentApplication = {
-            id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
-            movimiento_id: mov.id,
-            factura_id: currentInv.id,
-            factura_numero: currentInv.numero,
-            cliente_id: client.id,
-            cliente_nombre: client.name,
-            monto_aplicado: item.monto,
-            moneda: currentInv.moneda || 'UYU',
-            fecha: mov.fecha || new Date().toISOString().split('T')[0],
-            confirmado_por: 'Operador Admin'
-          };
-          newPaymentApps.push(paymentApp);
-          affectedInvoicesDetails.push({
-            factura_id: currentInv.id,
-            numero: currentInv.numero,
-            monto_aplicado: item.monto
-          });
-          receiptInvoicesList.push({
-            factura_id: currentInv.id,
-            factura_numero: currentInv.numero,
-            monto_aplicado: item.monto,
-            saldo_restante: newSaldo
-          });
-        }
+        const paymentApp: PaymentApplication = {
+          id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+          movimiento_id: mov.id,
+          factura_id: currentInv.id,
+          factura_numero: currentInv.numero,
+          cliente_id: client.id,
+          cliente_nombre: client.name,
+          monto_aplicado: item.monto,
+          moneda: currentInv.moneda || 'UYU',
+          fecha: mov.fecha || new Date().toISOString().split('T')[0],
+          confirmado_por: 'Operador Admin'
+        };
+        newPaymentApps.push(paymentApp);
+        affectedInvoicesDetails.push({
+          factura_id: currentInv.id,
+          numero: currentInv.numero,
+          monto_aplicado: item.monto
+        });
+        receiptInvoicesList.push({
+          factura_id: currentInv.id,
+          factura_numero: currentInv.numero,
+          monto_aplicado: item.monto,
+          saldo_restante: newSaldo
+        });
       }
-      return updated;
-    });
+    }
+
+    setInvoices(updatedInvoices);
 
     // Handle excess credit
     if (excessToCredit > 0) {
@@ -766,10 +956,14 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     // Generate Official Receipt and Accounting Entry
+    const entryNumber = `AST-${new Date().getFullYear()}-${String(accountingEntries.length + 1).padStart(5, '0')}`;
+    const receiptNumber = `REC-${new Date().getFullYear()}-${String(officialReceipts.length + 101).padStart(5, '0')}`;
     const { receipt, entry } = createReceiptAndJournal(
       mov,
       client,
       receiptInvoicesList,
+      entryNumber,
+      receiptNumber,
       withholding,
       bankFee,
       excessToCredit
@@ -1107,6 +1301,48 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return c;
     }));
 
+    // Balanced journal entry cancelling the Anticipo against the Deudor —
+    // without this, Anticipos y Saldos a Favor never comes back down in the
+    // ledger even after the credit is fully consumed against a real invoice.
+    const accounts = company.accountingAccounts || {
+      bankAccountCode: '1.1.1.02',
+      debtorsAccountCode: '1.1.3.01',
+      taxWithholdingCode: '1.1.4.01',
+      bankFeeCode: '5.1.2.05',
+      exchangeDiffGainCode: '4.2.1.01',
+      exchangeDiffLossCode: '5.2.1.01'
+    };
+    const entryNumber = `AST-${new Date().getFullYear()}-${String(accountingEntries.length + 1).padStart(5, '0')}`;
+    const creditApplicationEntry: AccountingEntry = {
+      id: 'ast_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+      asiento_numero: entryNumber,
+      fecha: new Date().toISOString().split('T')[0],
+      concepto: `Aplicación de saldo a favor a Factura ${invoice.numero} — ${credit.cliente_nombre}`,
+      cliente_id: credit.cliente_id,
+      cliente_nombre: credit.cliente_nombre,
+      moneda: credit.moneda || 'UYU',
+      lineas: [
+        {
+          cuenta_codigo: '2.1.3.01',
+          cuenta_nombre: `Anticipos y Saldos a Favor - ${credit.cliente_nombre}`,
+          debito: actualApply,
+          credito: 0,
+          referencia: 'Aplicación de crédito a cuenta'
+        },
+        {
+          cuenta_codigo: accounts.debtorsAccountCode,
+          cuenta_nombre: `Deudores por Ventas - ${credit.cliente_nombre}`,
+          debito: 0,
+          credito: actualApply,
+          referencia: invoice.numero
+        }
+      ],
+      total_debito: actualApply,
+      total_credito: actualApply,
+      creado_por: 'ConciliaYA Engine'
+    };
+    setAccountingEntries(prev => [creditApplicationEntry, ...prev]);
+
     const audit: AuditLog = {
       id: 'aud_' + Date.now(),
       fecha: new Date().toISOString(),
@@ -1115,6 +1351,13 @@ export const ConciliaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       entidad: 'credito',
       entidad_id: creditId,
       descripcion: `Aplicado crédito de $${actualApply.toLocaleString()} a Factura ${invoice.numero} de ${credit.cliente_nombre}`,
+      detalles: {
+        cliente_id: credit.cliente_id,
+        cliente_nombre: credit.cliente_nombre,
+        monto: actualApply,
+        facturas_afectadas: [{ factura_id: invoice.id, numero: invoice.numero, monto_aplicado: actualApply }],
+        asiento_id: creditApplicationEntry.id
+      },
       revertible: false
     };
     setAuditLogs(prev => [audit, ...prev]);

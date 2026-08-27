@@ -181,9 +181,11 @@ export const DashboardView: React.FC = () => {
             <div className="text-2xl font-bold text-slate-900 dark:text-white">
               {bankMovements.length > 0
                 ? (() => {
+                    // Movements actually reconciled (confirmed), not merely "has a suggestion" —
+                    // a 54%-confidence guess that nobody accepted yet shouldn't count as "effective".
                     const atRisk = bankMovements.length - yaConciliadoMatches.length;
                     return atRisk > 0
-                      ? `${Math.round(((autoMatches.length + suggestedMatches.length + reconciledMatches.length) / atRisk) * 100)}%`
+                      ? `${Math.round((reconciledMatches.length / atRisk) * 100)}%`
                       : '100%';
                   })()
                 : '100%'}

@@ -787,7 +787,8 @@ export function validateBankMovementsBatch(
         referencia: refStr,
         origen_banco: rawBanco ? String(rawBanco).trim() : 'Banco Principal',
         estado_conciliacion: 'sin_identificar',
-        confianza: 0
+        confianza: 0,
+        es_credito: true
       };
       sanitizedRows.push(sanitizedMov);
     }

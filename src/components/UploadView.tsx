@@ -135,7 +135,9 @@ export const UploadView: React.FC = () => {
           'importe', 'monto', 'total', 'saldo', 'valor', 'amount', 'price',
           'monto (sin iva)', 'precio', 'importe total'
         ]) || '',
-        moneda: findBest(['moneda', 'curr', 'currency', 'mon', 'divisa']),
+        // NOTE: no bare 'mon' pattern here — it matches "Monto (USD)" as a substring
+        // and hijacks the amount column as if it were the currency column.
+        moneda: findBest(['moneda', 'currency', 'divisa', 'ccy']),
         iva_monto: findBest(['iva ventas', 'iva', 'impuesto', 'tax', 'imp iv a', 'imp. iva']),
         monto_pagado: findBest(['monto pagado', 'pagado', 'paid', 'amount paid', 'abonado', 'pagado total'])
       });
@@ -162,7 +164,9 @@ export const UploadView: React.FC = () => {
           'reference', 'ticket', 'voucher'
         ]),
         banco: findBest(['banco', 'origen', 'cuenta', 'bank', 'entidad', 'sucursal']),
-        moneda: findBest(['moneda', 'curr', 'currency', 'mon', 'divisa'])
+        // NOTE: no bare 'mon' pattern here — it matches "Monto (USD)" as a substring
+        // and hijacks the amount column as if it were the currency column.
+        moneda: findBest(['moneda', 'currency', 'divisa', 'ccy'])
       });
 
       // Store detected Crédito/Débito column for filtering debits
