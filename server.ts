@@ -1,10 +1,11 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// No usar import.meta.url aqui: el bundle de produccion se genera en formato CJS
+// (esbuild --format=cjs), donde import.meta queda como un objeto vacio y
+// fileURLToPath(undefined) lanzaba TypeError al arrancar `npm start`.
+// Todo el codigo que necesita rutas usa process.cwd() mas abajo.
 
 async function startServer() {
   const app = express();
