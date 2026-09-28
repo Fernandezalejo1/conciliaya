@@ -28,6 +28,8 @@ jobs:
       - name: Typecheck
         run: npm run lint
 
+      # Cubre el nucleo contable y el handler de /api/auth (contrasena correcta,
+      # incorrecta, de otro largo, vacia y sin configurar).
       - name: Pruebas del motor
         run: npm test
 
