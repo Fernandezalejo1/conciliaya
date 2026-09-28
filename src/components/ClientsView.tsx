@@ -73,7 +73,7 @@ export const ClientsView: React.FC = () => {
       .filter(a => a.length > 0);
 
     if (editingId) {
-      updateClient(editingId, {
+      const ok = updateClient(editingId, {
         name: formName.trim(),
         rut_ci: formRut.trim(),
         email: formEmail.trim() || undefined,
@@ -82,9 +82,10 @@ export const ClientsView: React.FC = () => {
         address: formAddress.trim() || undefined,
         alias_conocidos: aliases
       });
+      if (!ok) return;
       setSavedMsg('Cliente actualizado correctamente');
     } else {
-      addClient({
+      const ok = addClient({
         name: formName.trim(),
         rut_ci: formRut.trim(),
         email: formEmail.trim() || undefined,
@@ -93,6 +94,7 @@ export const ClientsView: React.FC = () => {
         address: formAddress.trim() || undefined,
         alias_conocidos: aliases
       });
+      if (!ok) return;
       setSavedMsg('Cliente registrado correctamente');
     }
 
@@ -102,7 +104,7 @@ export const ClientsView: React.FC = () => {
   };
 
   const handleDelete = (id: string) => {
-    deleteClient(id);
+    if (!deleteClient(id)) return;
     setDeleteConfirmId(null);
     setSavedMsg('Cliente eliminado');
     setTimeout(() => setSavedMsg(''), 3000);

@@ -26,6 +26,9 @@ import {
 } from 'lucide-react';
 import { useConcilia } from '../context/ConciliaContext';
 import { Invoice } from '../types';
+import { convertMoney, invoiceTotal, roundMoney } from '../utils/money';
+import { calculateAging } from '../utils/matchingEngine';
+import { csvRow } from '../utils/csv';
 
 export const AccountStatementView: React.FC = () => {
   const {
@@ -57,46 +60,26 @@ export const AccountStatementView: React.FC = () => {
   const getClientDebt = (clientId: string) =>
     invoices
       .filter(i => i.cliente_id === clientId && i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada')
-      .reduce((sum, i) => sum + i.saldo_pendiente, 0);
+      .reduce((sum, i) => sum + convertMoney(i.saldo_pendiente, i.moneda, company.currency, company.usdExchangeRate), 0);
 
-  const selectedClientDebt = getClientDebt(selectedClientId);
+  const selectedClientDebt = getClientDebt(selectedClient?.id || '');
 
   // Invoices for client
-  const clientInvoices = invoices.filter(i => i.cliente_id === selectedClientId);
+  const clientInvoices = invoices.filter(i => i.cliente_id === (selectedClient?.id || ''));
   const pendingInvoices = clientInvoices.filter(i => i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada');
   const paidInvoices = clientInvoices.filter(i => i.estado === 'pagada');
 
   // Payments for client
-  const clientPayments = paymentApplications.filter(p => p.cliente_id === selectedClientId);
+  const clientPayments = paymentApplications.filter(p => p.cliente_id === (selectedClient?.id || ''));
 
   // Available credits for client
-  const clientAvailableCredits = clientCredits.filter(c => c.cliente_id === selectedClientId && c.saldo_disponible > 0);
-  const totalAvailableCredit = clientAvailableCredits.reduce((sum, c) => sum + c.saldo_disponible, 0);
+  const clientAvailableCredits = clientCredits.filter(c => c.cliente_id === (selectedClient?.id || '') && c.saldo_disponible > 0);
+  const totalAvailableCredit = clientAvailableCredits.reduce((sum, c) => sum + convertMoney(c.saldo_disponible, c.moneda, company.currency, company.usdExchangeRate), 0);
 
   // Email logs for this client
-  const clientEmailLogs = emailReminderLogs.filter(log => log.cliente_id === selectedClientId);
+  const clientEmailLogs = emailReminderLogs.filter(log => log.cliente_id === (selectedClient?.id || ''));
 
-  // Aging buckets calculation for this client
-  const now = new Date().getTime();
-  const aging = {
-    al_dia: 0,
-    dias_1_30: 0,
-    dias_31_60: 0,
-    dias_61_90: 0,
-    mas_90_dias: 0
-  };
-
-  pendingInvoices.forEach(inv => {
-    const dueTime = new Date(inv.vencimiento).getTime();
-    const diffDays = Math.floor((now - dueTime) / (1000 * 60 * 60 * 24));
-    const amount = inv.saldo_pendiente;
-
-    if (diffDays <= 0) aging.al_dia += amount;
-    else if (diffDays <= 30) aging.dias_1_30 += amount;
-    else if (diffDays <= 60) aging.dias_31_60 += amount;
-    else if (diffDays <= 90) aging.dias_61_90 += amount;
-    else aging.mas_90_dias += amount;
-  });
+  const aging = calculateAging(pendingInvoices, company.currency, company.usdExchangeRate);
 
   // Build unified ledger (Cuenta Corriente)
   interface LedgerEntry {
@@ -122,16 +105,18 @@ export const AccountStatementView: React.FC = () => {
     }> = [];
 
     // Add Invoices (Débito)
-    clientInvoices.forEach(inv => {
+    clientInvoices.filter(i=>i.estado!=='anulada').forEach(inv => {
       rawEntries.push({
         id: inv.id,
         fecha: inv.fecha,
         concepto: `Emisión de Factura ${inv.numero} (${inv.moneda || 'UYU'})`,
         tipo: 'factura',
         documento: inv.numero,
-        debito: inv.importe,
+        debito: convertMoney(invoiceTotal(inv), inv.moneda, company.currency, company.usdExchangeRate),
         credito: 0
       });
+      const historical=roundMoney(invoiceTotal(inv)-inv.saldo_pendiente-clientPayments.filter(p=>p.factura_id===inv.id).reduce((n,p)=>n+p.monto_aplicado,0));
+      if(historical>0)rawEntries.push({id:inv.id+'_historical',fecha:inv.fecha,concepto:'Cobros históricos importados: '+inv.numero,tipo:'pago',documento:inv.numero,debito:0,credito:convertMoney(historical,inv.moneda,company.currency,company.usdExchangeRate)});
     });
 
     // Add Payments (Crédito)
@@ -143,7 +128,7 @@ export const AccountStatementView: React.FC = () => {
         tipo: 'pago',
         documento: pay.factura_numero,
         debito: 0,
-        credito: pay.monto_aplicado
+        credito: convertMoney(pay.monto_aplicado, pay.moneda, company.currency, company.usdExchangeRate)
       });
     });
 
@@ -153,7 +138,7 @@ export const AccountStatementView: React.FC = () => {
     // Calculate progressive running balance
     let running = 0;
     return rawEntries.map(entry => {
-      running += (entry.debito - entry.credito);
+      running = roundMoney(running + entry.debito - entry.credito);
       return {
         ...entry,
         saldoAcumulado: running
@@ -169,7 +154,7 @@ export const AccountStatementView: React.FC = () => {
     csv += `Fecha,Concepto,Documento,Débito,Crédito,Saldo Acumulado\n`;
 
     ledger.forEach(row => {
-      csv += `${row.fecha},"${row.concepto}",${row.documento},${row.debito},${row.credito},${row.saldoAcumulado}\n`;
+      csv += csvRow([row.fecha,row.concepto,row.documento,row.debito,row.credito,row.saldoAcumulado]) + "\n";
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -255,7 +240,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6"><p className="text-sm text-slate-500">Resumen equivalente en {company.currency} al cambio {company.usdExchangeRate} UYU/USD.</p>
       {/* Toast Notification */}
       {notificationMsg && (
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-400 px-4 py-3 rounded-xl text-xs font-semibold flex items-center justify-between shadow-xs">
@@ -580,9 +565,9 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
                               {inv.moneda === 'USD' ? 'US$' : '$'} {inv.saldo_pendiente.toLocaleString('es-UY')}
                             </td>
                             <td className="px-4 py-3 text-right">
-                              {totalAvailableCredit > 0 && clientAvailableCredits[0] ? (
+                              {clientAvailableCredits.some(c=>c.moneda===inv.moneda) ? (
                                 <button
-                                  onClick={() => handleApplyCredit(clientAvailableCredits[0].id, inv.id, Math.min(totalAvailableCredit, inv.saldo_pendiente))}
+                                  onClick={() => { const credit=clientAvailableCredits.find(c=>c.moneda===inv.moneda)!; handleApplyCredit(credit.id, inv.id, Math.min(credit.saldo_disponible, inv.saldo_pendiente)); }}
                                   className="px-2.5 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold rounded-lg text-[11px] transition-colors"
                                 >
                                   Aplicar Crédito
@@ -704,7 +689,7 @@ ${company.phone ? `Tel: ${company.phone}` : ''} | ${company.email ? `Email: ${co
         </div>
         <div className="flex flex-wrap gap-1.5 mt-3">
           {clients.map((c) => {
-            const isSelected = c.id === selectedClientId;
+            const isSelected = c.id === (selectedClient?.id || '');
             return (
               <button
                 key={c.id}

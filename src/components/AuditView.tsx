@@ -52,7 +52,7 @@ export const AuditView: React.FC = () => {
   const handleConfirmRevert = () => {
     if (!logToRevert) return;
     const logDesc = logToRevert.descripcion;
-    revertReconciliation(logToRevert.id);
+    if (!revertReconciliation(logToRevert.id)) return;
     setFeedbackMessage(`Operación revertida con éxito: "${logDesc}". Los saldos y facturas han sido restaurados.`);
     setLogToRevert(null);
 

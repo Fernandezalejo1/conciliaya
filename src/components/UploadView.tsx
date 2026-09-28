@@ -367,23 +367,27 @@ export const UploadView: React.FC = () => {
 
     if (activeUploadType === 'invoices') {
       const sanitizedInvoices = validationSummary.sanitizedRows as Invoice[];
-      importInvoices(sanitizedInvoices);
+      const result = importInvoices(sanitizedInvoices);
+      if (!result.ok) return;
 
       const skippedCount = validationSummary.totalRows - sanitizedInvoices.length;
-      if (skippedCount > 0) {
-        setSuccessMsg(`¡Se importaron exitosamente ${sanitizedInvoices.length} facturas validadas! (${skippedCount} filas con errores fueron omitidas).`);
+      const errores = skippedCount > 0 ? ` (${skippedCount} filas con errores fueron omitidas).` : '';
+      if (result.added === 0) {
+        setSuccessMsg('No se agregó nada nuevo: esas facturas ya existían en el libro y sus importes no se sumaron de nuevo.' + errores);
       } else {
-        setSuccessMsg(`¡Se importaron exitosamente ${sanitizedInvoices.length} facturas 100% validadas!`);
+        setSuccessMsg(`¡Se importaron ${result.added} facturas nuevas!${errores}`);
       }
     } else {
       const sanitizedMovements = validationSummary.sanitizedRows as BankMovement[];
-      importBankMovements(sanitizedMovements);
+      const result = importBankMovements(sanitizedMovements);
+      if (!result.ok) return;
 
       const skippedCount = validationSummary.totalRows - sanitizedMovements.length;
-      if (skippedCount > 0) {
-        setSuccessMsg(`¡Se importaron exitosamente ${sanitizedMovements.length} movimientos validados (${skippedCount} omitidos)! Ejecutando motor de matching...`);
+      const errores = skippedCount > 0 ? ` (${skippedCount} omitidos).` : '';
+      if (result.added === 0) {
+        setSuccessMsg('No se agregó nada nuevo: esos movimientos ya existían en el libro.');
       } else {
-        setSuccessMsg(`¡Se importaron exitosamente ${sanitizedMovements.length} movimientos bancarios validados! Ejecutando motor de matching...`);
+        setSuccessMsg(`¡Se importaron ${result.added} movimientos bancarios nuevos!${errores} Ejecutando motor de matching...`);
       }
 
       setTimeout(() => {

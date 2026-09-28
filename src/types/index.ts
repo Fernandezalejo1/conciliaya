@@ -127,6 +127,9 @@ export interface BankMovement {
 }
 
 export interface PaymentApplication {
+  monto_movimiento?: number;
+  tipo_cambio?: number;
+  credito_id?: string;
   id: string;
   movimiento_id: string;
   factura_id: string;
@@ -163,6 +166,7 @@ export interface LearnedAlias {
 }
 
 export interface OfficialReceipt {
+  anulado?: boolean;
   id: string;
   numero_recibo: string; // e.g. REC-2026-000101
   fecha: string;
@@ -197,6 +201,7 @@ export interface JournalEntryLine {
 }
 
 export interface AccountingEntry {
+  reversa_de?: string;
   id: string;
   asiento_numero: string; // e.g. AST-2026-0042
   fecha: string;
@@ -242,6 +247,7 @@ export interface AuditLog {
   entidad_id: string;
   descripcion: string;
   detalles?: {
+    payment_application_id?: string;
     movimiento_id?: string;
     cliente_id?: string;
     cliente_nombre?: string;

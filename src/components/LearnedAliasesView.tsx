@@ -35,7 +35,7 @@ export const LearnedAliasesView: React.FC = () => {
     e.preventDefault();
     if (!newAliasText.trim() || !newAliasClientId) return;
 
-    addLearnedAlias(newAliasText.trim().toUpperCase(), newAliasClientId);
+    if (!addLearnedAlias(newAliasText.trim().toUpperCase(), newAliasClientId)) return;
     setSuccessMsg(`¡Alias "${newAliasText.toUpperCase()}" agregado con éxito!`);
     setNewAliasText('');
     setShowAddForm(false);
@@ -220,7 +220,7 @@ export const LearnedAliasesView: React.FC = () => {
           <p className="font-semibold text-slate-900 dark:text-white">
           </p>
           <p className="leading-relaxed">
-            A diferencia de un modelo de IA probabilístico, los alias aprendidos son reglas auditables y 100% predecibles. El sistema nunca inventa una asociación sin que un humano la haya aprobado previamente.
+            Los alias son asociaciones confirmadas por el operador. El motor también propone coincidencias por similitud; los casos ambiguos requieren revisión. No utiliza servicios de IA.
           </p>
         </div>
       </div>

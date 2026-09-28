@@ -33,25 +33,30 @@ const MainContent: React.FC = () => {
 };
 
 function AppContent() {
-  const [authenticated, setAuthenticated] = useState<boolean>(() => {
-    return !!localStorage.getItem(SESSION_KEY);
-  });
+  const [authenticated, setAuthenticated] = useState(false);
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    localStorage.removeItem(SESSION_KEY);
+    fetch('/api/auth').then(r=>setAuthenticated(r.ok)).catch(()=>setAuthenticated(false)).finally(()=>setChecking(false));
+    const timer=setInterval(()=>fetch('/api/auth').then(r=>{if(!r.ok)setAuthenticated(false);}).catch(()=>setAuthenticated(false)),60000);
+    return ()=>clearInterval(timer);
+  }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch('/api/auth',{method:'DELETE'}).catch(()=>{});
     localStorage.removeItem(SESSION_KEY);
     setAuthenticated(false);
   };
 
+  if (checking) return <p className="p-8">Verificando acceso…</p>;
   if (!authenticated) {
     return <LoginView onLogin={() => setAuthenticated(true)} />;
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/60 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-blue-500 selection:text-white flex flex-col">
+    <ConciliaProvider><div className="min-h-screen bg-slate-50/60 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-blue-500 selection:text-white flex flex-col">
       <Navbar onLogout={handleLogout} />
-      <div className="flex-1">
-        <MainContent />
-      </div>
+      <div className="flex-1"><MainContent /></div>
 
       <footer className="border-t border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 py-4 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
@@ -62,18 +67,14 @@ function AppContent() {
           <div className="flex items-center space-x-3 text-slate-400 dark:text-slate-500">
             <span>Modo Operador B2B</span>
             <span>•</span>
-            <span>Auditoría Determinística 100% Humano-en-el-Bucle</span>
+            <span>Reglas y alias locales · Confirmación humana</span>
           </div>
         </div>
       </footer>
-    </div>
+    </div></ConciliaProvider>
   );
 }
 
 export default function App() {
-  return (
-    <ConciliaProvider>
-      <AppContent />
-    </ConciliaProvider>
-  );
+  return <AppContent />;
 }

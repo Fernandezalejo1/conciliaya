@@ -35,6 +35,7 @@ export const SettingsView: React.FC = () => {
     officialReceipts,
     accountingEntries,
     emailReminderLogs
+    , exportBackup, restoreBackup
   } = useConcilia();
 
   const [name, setName] = useState(company.name);
@@ -53,7 +54,7 @@ export const SettingsView: React.FC = () => {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    setCompany(prev => ({
+    const ok = setCompany(prev => ({
       ...prev,
       name,
       rut,
@@ -63,6 +64,7 @@ export const SettingsView: React.FC = () => {
       usdExchangeRate: usdRate,
       autoMatchThreshold: autoMatchThreshold / 100
     }));
+    if (!ok) return;
     setSavedMsg(true);
     setTimeout(() => {
       runMatchingEngine();
@@ -71,18 +73,7 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleExportBackupJSON = () => {
-    const backup = {
-      company,
-      clients,
-      invoices,
-      bankMovements,
-      learnedAliases,
-      officialReceipts,
-      accountingEntries,
-      emailReminderLogs,
-      exportedAt: new Date().toISOString()
-    };
-    const jsonStr = JSON.stringify(backup, null, 2);
+    const jsonStr = exportBackup();
     const blob = new Blob([jsonStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -91,6 +82,7 @@ export const SettingsView: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -110,6 +102,18 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
+      <div className="p-4 bg-white dark:bg-slate-800 rounded-xl space-y-3">
+        <p className="text-sm">Los datos se guardan en este navegador. Exportá respaldos para conservarlos fuera del equipo. Usá una sola pestaña para operar.</p>
+        <label className="block text-sm font-semibold">Restaurar respaldo completo
+          <input aria-label="Restaurar respaldo completo" type="file" accept=".json" className="block mt-2" onChange={async e => {
+            const file=e.target.files?.[0]; if (!file) return;
+            if (window.confirm('Se reemplazarán los datos activos por el respaldo. Se conservará una copia del estado anterior.')) {
+              if (restoreBackup(await file.text())) setSavedMsg(true);
+            }
+            e.target.value='';
+          }} />
+        </label>
+      </div>
       {/* Main Settings Form */}
       <form onSubmit={handleSave} className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700 shadow-xs space-y-6">
         <div className="space-y-4">
@@ -233,7 +237,7 @@ export const SettingsView: React.FC = () => {
           </div>
 
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700">
-            Cualquier sugerencia con un porcentaje igual o mayor a este umbral se clasificará como <strong>100% Automática</strong> y podrá ser aprobada en lote con un solo clic.
+            Cualquier sugerencia con un porcentaje igual o mayor a este umbral se clasificará como <strong>Alta coincidencia</strong> y podrá ser aprobada en lote con un solo clic.
           </p>
         </div>
 
@@ -317,8 +321,8 @@ export const SettingsView: React.FC = () => {
                   <RotateCcw className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">¿Restablecer datos demo?</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Se restaurarán las facturas y extractos iniciales.</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">¿Iniciar libro vacío?</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Se guardará una copia anterior y se iniciará un libro vacío.</p>
                 </div>
               </div>
               <button
@@ -330,7 +334,7 @@ export const SettingsView: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-600 dark:text-slate-400 my-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 rounded-xl">
-              Esta acción restaurará el estado con los datos de prueba de importadora uruguaya (facturas pendientes, extractos bancarios y alias).
+              Esta acción inicia un libro vacío. Para probar la importación, descargá los archivos de ejemplo en Subir datos.
             </p>
 
             <div className="flex items-center justify-end space-x-3">
