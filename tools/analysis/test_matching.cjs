@@ -6,12 +6,30 @@
  */
 const XLSX = require('xlsx');
 
+// Los archivos .xlsx de entrada no viven en el repo (son datos reales), asi que
+// la ruta se pasa por variable de entorno. Antes estaba hardcodeada a una carpeta
+// de la maquina del autor y los scripts no corrian en ningun otro lado.
+function requireXlsxPath(envVar, label) {
+  const value = process.env[envVar];
+  if (!value) {
+    console.error(`Falta la variable ${envVar} (${label}).`);
+    console.error(`Ejemplo: ${envVar}=./datos.xlsx node ${require('path').basename(__filename)}`);
+    process.exit(1);
+  }
+  if (!require('fs').existsSync(value)) {
+    console.error(`No existe el archivo indicado en ${envVar}: ${value}`);
+    process.exit(1);
+  }
+  return value;
+}
+
+
 // ============================================================================
 // STEP 1: Parse data
 // ============================================================================
 
 // Parse invoices
-const wbInv = XLSX.readFile('C:\\Users\\noiss\\Downloads\\facutas\\Facturas_Emitidas_Anonimizado (1).xlsx');
+const wbInv = XLSX.readFile(requireXlsxPath('CONCILIAYA_INVOICES_XLSX', 'facturas emitidas'));
 const wsInv = wbInv.Sheets[wbInv.SheetNames[0]];
 const invData = XLSX.utils.sheet_to_json(wsInv, { header: 1, defval: '', raw: true });
 
@@ -56,7 +74,7 @@ invData.slice(1).forEach((row, idx) => {
 });
 
 // Parse bank movements
-const wbBank = XLSX.readFile('C:\\Users\\noiss\\Downloads\\facutas\\Cashflow_Anonimizado(1).xlsx');
+const wbBank = XLSX.readFile(requireXlsxPath('CONCILIAYA_BANK_XLSX', 'movimientos bancarios'));
 const wsBank = wbBank.Sheets[wbBank.SheetNames[0]];
 const bankData = XLSX.utils.sheet_to_json(wsBank, { header: 1, defval: '', raw: true });
 
@@ -410,7 +428,7 @@ ourResults.forEach(r => {
 // ============================================================================
 
 console.log('\n\n=== LOADING CLAUDE RESULTS ===');
-const wbClaude = XLSX.readFile('C:\\Users\\noiss\\Downloads\\facutas\\Conciliacion_Bancaria_Facturas.xlsx');
+const wbClaude = XLSX.readFile(requireXlsxPath('CONCILIAYA_GOLD_XLSX', 'conciliacion de referencia'));
 const wsC = wbClaude.Sheets['Conciliación por Factura'];
 const dataC = XLSX.utils.sheet_to_json(wsC, { header: 1, defval: '', raw: true });
 const claudeRows = dataC.slice(3).filter(r => r[0] && r[1] && r[0] !== 'TOTAL');

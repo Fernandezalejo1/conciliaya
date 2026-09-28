@@ -1,8 +1,26 @@
 const XLSX = require('xlsx');
+
+// Los archivos .xlsx de entrada no viven en el repo (son datos reales), asi que
+// la ruta se pasa por variable de entorno. Antes estaba hardcodeada a una carpeta
+// de la maquina del autor y los scripts no corrian en ningun otro lado.
+function requireXlsxPath(envVar, label) {
+  const value = process.env[envVar];
+  if (!value) {
+    console.error(`Falta la variable ${envVar} (${label}).`);
+    console.error(`Ejemplo: ${envVar}=./datos.xlsx node ${require('path').basename(__filename)}`);
+    process.exit(1);
+  }
+  if (!require('fs').existsSync(value)) {
+    console.error(`No existe el archivo indicado en ${envVar}: ${value}`);
+    process.exit(1);
+  }
+  return value;
+}
+
 const path = require('path');
 
 // ─── 1. READ XLSX ───────────────────────────────────────────────────────────
-const filePath = 'C:\\Users\\noiss\\Downloads\\prueba\\Facturas_Prueba.xlsx';
+const filePath = requireXlsxPath('CONCILIAYA_INVOICES_XLSX', 'facturas de prueba');
 const wb = XLSX.readFile(filePath);
 const ws = wb.Sheets[wb.SheetNames[0]];
 const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });

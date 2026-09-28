@@ -33,6 +33,12 @@ const MainContent: React.FC = () => {
 };
 
 function AppContent() {
+  // AVISO: esto es una barrera de UI, no autenticacion. Solo comprueba que exista
+  // una clave en localStorage, y el valor que escribe el login no se valida en
+  // ningun lado. Cualquiera puede abrir las herramientas del navegador y crear la
+  // clave a mano. Sirve para separar la demo publica del uso interno, no para
+  // proteger datos: mientras el estado viva entero en el cliente, no hay forma de
+  // tener una sesion verificada.
   const [authenticated, setAuthenticated] = useState<boolean>(() => {
     return !!localStorage.getItem(SESSION_KEY);
   });

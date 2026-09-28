@@ -28,6 +28,11 @@ jobs:
       - name: Typecheck
         run: npm run lint
 
+      # Primer test automatizado del proyecto: cubre el handler de /api/auth
+      # (contrasena correcta, incorrecta, de otro largo, vacia y sin configurar).
+      - name: Tests
+        run: npm test
+
       - name: Build
         run: npm run build
 
