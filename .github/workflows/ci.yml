@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, Build & Smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # "lint" es tsc --noEmit. Los tests del motor viven en tests/.
+      - name: Typecheck
+        run: npm run lint
+
+      - name: Pruebas del motor
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # El build puede pasar y dejar un artefacto que no arranca: ya ocurrio con
+      # import.meta.url dentro del bundle CJS, donde tsc y vite no dicen nada y
+      # `npm start` moria con TypeError. Esto lo detecta.
+      # El bundle sale en dist/server.mjs (formato ESM) y scripts/start.mjs
+      # fija NODE_ENV=production antes de importarlo.
+      - name: Smoke test del servidor compilado
+        run: |
+          node scripts/start.mjs &
+          SERVER_PID=$!
+          for i in $(seq 1 20); do
+            if curl -sf -o /dev/null http://127.0.0.1:3000/; then
+              echo "El servidor respondio en el intento $i"
+              kill $SERVER_PID
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "El servidor no respondio tras 20 intentos"
+          kill $SERVER_PID 2>/dev/null || true
+          exit 1
