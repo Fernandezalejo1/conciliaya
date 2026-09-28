@@ -9,3 +9,10 @@ coverage/
 
 .vercel
 .freebuff/
+
+# Scripts de análisis locales: leen Excel desde rutas personales
+# (C:\Users\...\Downloads), así que solo corren en un equipo concreto
+# y no forman parte del proyecto.
+analyze_data.cjs
+read_mapping.cjs
+test_diag.cjs
