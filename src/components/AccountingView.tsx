@@ -90,8 +90,8 @@ export const AccountingView: React.FC = () => {
 
   // Export Official Receipts List
   const exportReceiptsCSV = () => {
-    if (officialReceipts.length === 0) {
-      setNotificationMsg('No hay recibos emitidos para exportar.');
+    if (officialReceipts.filter(rec => !rec.anulado).length === 0) {
+      setNotificationMsg('No hay recibos vigentes para exportar.');
       setTimeout(() => setNotificationMsg(null), 3500);
       return;
     }
@@ -99,7 +99,7 @@ export const AccountingView: React.FC = () => {
     const rows: string[] = [];
     rows.push('Numero_Recibo,Fecha,Cliente,RUT_CI,Banco,Total_Cobrado,Moneda,Retencion_Fiscal,Gasto_Bancario,Saldo_A_Favor,Facturas_Canceladas');
 
-    officialReceipts.forEach(rec => {
+    officialReceipts.filter(rec => !rec.anulado).forEach(rec => {
       const facturas = rec.facturas_canceladas.map(f => `${f.factura_numero}($${f.monto_aplicado})`).join('; ');
       rows.push(
         [
@@ -201,7 +201,7 @@ export const AccountingView: React.FC = () => {
           >
             <span className="flex items-center gap-2">
               <Receipt className="h-4 w-4" />
-              Recibos de Cobranza ({officialReceipts.length})
+              Recibos de Cobranza ({officialReceipts.filter(rec => !rec.anulado).length})
             </span>
           </button>
         </div>
@@ -316,13 +316,18 @@ export const AccountingView: React.FC = () => {
             </div>
           ) : (
             filteredReceipts.map(rec => (
-              <div key={rec.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-xs flex flex-col justify-between hover:border-indigo-300 transition-all">
+              <div key={rec.id} className={`bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-xs flex flex-col justify-between transition-all ${rec.anulado ? 'opacity-65' : 'hover:border-indigo-300'}`}>
                 <div>
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3 mb-3">
                     <div>
                       <span className="font-mono font-bold text-xs text-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded border border-indigo-200">
                         {rec.numero_recibo}
                       </span>
+                      {rec.anulado && (
+                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-bold uppercase bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                          Anulado
+                        </span>
+                      )}
                       <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{rec.fecha}</p>
                     </div>
                     <div className="text-right">

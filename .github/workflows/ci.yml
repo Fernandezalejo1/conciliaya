@@ -24,13 +24,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # El script "lint" es tsc --noEmit. El repo no tiene tests automatizados.
+      # "lint" es tsc --noEmit. Los tests del motor viven en tests/.
       - name: Typecheck
         run: npm run lint
 
-      # Primer test automatizado del proyecto: cubre el handler de /api/auth
-      # (contrasena correcta, incorrecta, de otro largo, vacia y sin configurar).
-      - name: Tests
+      # Cubre el nucleo contable y el handler de /api/auth (contrasena correcta,
+      # incorrecta, de otro largo, vacia y sin configurar).
+      - name: Pruebas del motor
         run: npm test
 
       - name: Build
@@ -39,9 +39,11 @@ jobs:
       # El build puede pasar y dejar un artefacto que no arranca: ya ocurrio con
       # import.meta.url dentro del bundle CJS, donde tsc y vite no dicen nada y
       # `npm start` moria con TypeError. Esto lo detecta.
+      # El bundle sale en dist/server.mjs (formato ESM) y scripts/start.mjs
+      # fija NODE_ENV=production antes de importarlo.
       - name: Smoke test del servidor compilado
         run: |
-          node dist/server.cjs &
+          node scripts/start.mjs &
           SERVER_PID=$!
           for i in $(seq 1 20); do
             if curl -sf -o /dev/null http://127.0.0.1:3000/; then

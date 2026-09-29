@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { useConcilia } from '../context/ConciliaContext';
+import { convertMoney } from '../utils/money';
 
 export const DashboardView: React.FC = () => {
   const {
@@ -32,14 +33,14 @@ export const DashboardView: React.FC = () => {
   // Metrics
   const totalPendingInvoicesAmount = invoices
     .filter(i => i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada')
-    .reduce((sum, i) => sum + i.saldo_pendiente, 0);
+    .reduce((sum, i) => sum + convertMoney(i.saldo_pendiente, i.moneda, company.currency, company.usdExchangeRate), 0);
 
   const totalInvoicesCount = invoices.length;
   const pendingInvoicesCount = invoices.filter(i => i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada').length;
 
   const totalBankPendingAmount = bankMovements
     .filter(m => m.estado_conciliacion !== 'conciliado_manual' && m.estado_conciliacion !== 'descartado')
-    .reduce((sum, m) => sum + m.monto, 0);
+    .reduce((sum, m) => sum + convertMoney(m.monto, m.moneda, company.currency, company.usdExchangeRate), 0);
 
   const totalBankPendingCount = bankMovements
     .filter(m => m.estado_conciliacion !== 'conciliado_manual' && m.estado_conciliacion !== 'descartado')
@@ -53,16 +54,16 @@ export const DashboardView: React.FC = () => {
 
   const totalReconciledAmount = bankMovements
     .filter(m => m.estado_conciliacion === 'conciliado_manual')
-    .reduce((sum, m) => sum + m.monto, 0);
+    .reduce((sum, m) => sum + convertMoney(m.monto, m.moneda, company.currency, company.usdExchangeRate), 0);
 
   const totalCreditsAmount = clientCredits
     .filter(c => c.estado === 'disponible' || c.estado === 'parcial')
-    .reduce((sum, c) => sum + c.saldo_disponible, 0);
+    .reduce((sum, c) => sum + convertMoney(c.saldo_disponible, c.moneda, company.currency, company.usdExchangeRate), 0);
 
   // Chart Data: Status Breakdown
   const statusChartData = [
     { name: 'Conciliados', value: reconciledMatches.length, color: '#10b981' },
-    { name: '100% Automáticos', value: autoMatches.length, color: '#2563eb' },
+    { name: 'Alta coincidencia', value: autoMatches.length, color: '#2563eb' },
     { name: 'Ya Conciliados', value: yaConciliadoMatches.length, color: '#8b5cf6' },
     { name: 'Sugeridos (1 Clic)', value: suggestedMatches.length, color: '#f59e0b' },
     { name: 'Sin Identificar', value: unidentifiedMatches.length, color: '#ef4444' }
@@ -72,7 +73,7 @@ export const DashboardView: React.FC = () => {
   const clientDebts = new Map<string, number>();
   for (const inv of invoices) {
     if (inv.saldo_pendiente > 0 && inv.estado !== 'pagada' && inv.estado !== 'anulada') {
-      clientDebts.set(inv.cliente_id, (clientDebts.get(inv.cliente_id) || 0) + inv.saldo_pendiente);
+      clientDebts.set(inv.cliente_id, (clientDebts.get(inv.cliente_id) || 0) + convertMoney(inv.saldo_pendiente, inv.moneda, company.currency, company.usdExchangeRate));
     }
   }
   const topDebtors = [...clients]
@@ -89,12 +90,13 @@ export const DashboardView: React.FC = () => {
   const handleBulkApprove = () => {
     const count = confirmAllAutoMatches();
     if (count > 0) {
-      alert(`¡Éxito! Se conciliaron ${count} movimientos con 100% de certeza.`);
+      alert(`¡Éxito! Se conciliaron ${count} movimientos tras validar saldos disponibles.`);
     }
   };
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-slate-500">Totales equivalentes en {company.currency} al cambio configurado de {company.usdExchangeRate} UYU/USD. Los documentos conservan su moneda original.</p>
       {/* Top Banner Alert if auto-matches exist */}
       {autoMatches.length > 0 && (
         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-4 sm:p-5 text-white shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -107,7 +109,7 @@ export const DashboardView: React.FC = () => {
                 {autoMatches.length} {autoMatches.length === 1 ? 'movimiento listo' : 'movimientos listos'} para conciliación automática inmediata
               </h3>
               <p className="text-blue-100 text-xs sm:text-sm mt-0.5">
-                Coincidencia 100% exacta por número de factura o alias aprendido validado.
+                Sugerencias basadas en referencias y alias. Revisá la asignación antes de confirmar.
               </p>
             </div>
           </div>

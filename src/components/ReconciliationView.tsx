@@ -30,6 +30,7 @@ import {
 import confetti from 'canvas-confetti';
 import { useConcilia } from '../context/ConciliaContext';
 import { BankMovement, Client, Invoice } from '../types';
+import { affordableAmount, convertMoney, roundMoney } from '../utils/money';
 
 export const ReconciliationView: React.FC = () => {
   const {
@@ -103,7 +104,7 @@ export const ReconciliationView: React.FC = () => {
   const filteredMovements = getFilteredMovements();
 
   const handleConfirmSingle = (movementId: string, customAlias?: string) => {
-    confirmMatch(movementId, customAlias);
+    if (!confirmMatch(movementId, customAlias)) return;
     if (pendingItems.length <= 1) {
       confetti({
         particleCount: 80,
@@ -135,12 +136,13 @@ export const ReconciliationView: React.FC = () => {
     const preselect = forceClientId || movement.cliente_sugerido_id || (clients.length > 0 ? clients[0].id : '');
     setSelectedClientId(preselect);
 
-    initAllocationsForClient(preselect, movement.monto + (preWithholding || movement.sugerencia?.retencion_estimada || 0));
+    initAllocationsForClient(preselect, movement.monto + (preWithholding || movement.sugerencia?.retencion_estimada || 0) + (preFee || 0), movement);
   };
 
-  const initAllocationsForClient = (clientId: string, totalEffectiveAmount: number) => {
+  const initAllocationsForClient = (clientId: string, totalEffectiveAmount: number, movement = modalMovement) => {
+    if (!movement) return;
     const clientInvoices = invoices.filter(
-      i => i.cliente_id === clientId && i.saldo_pendiente > 0 && i.estado !== 'pagada'
+      i => i.cliente_id === clientId && i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada'
     ).sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
     let remaining = totalEffectiveAmount;
@@ -150,9 +152,9 @@ export const ReconciliationView: React.FC = () => {
       if (remaining <= 0) {
         initialMap[inv.id] = 0;
       } else {
-        const apply = Math.min(inv.saldo_pendiente, remaining);
+        const apply = affordableAmount(remaining, inv.saldo_pendiente, movement.moneda, inv.moneda, movement.tipo_cambio ?? company.usdExchangeRate);
         initialMap[inv.id] = apply;
-        remaining -= apply;
+        remaining = roundMoney(remaining - convertMoney(apply, inv.moneda, movement.moneda, movement.tipo_cambio ?? company.usdExchangeRate));
       }
     }
     setManualAllocations(initialMap);
@@ -161,7 +163,7 @@ export const ReconciliationView: React.FC = () => {
   const handleClientChangeInModal = (clientId: string) => {
     setSelectedClientId(clientId);
     if (modalMovement) {
-      initAllocationsForClient(clientId, modalMovement.monto + taxWithholding);
+      initAllocationsForClient(clientId, modalMovement.monto + taxWithholding + bankFee);
     }
   };
 
@@ -177,7 +179,7 @@ export const ReconciliationView: React.FC = () => {
     const estimatedInvoiceTotal = modalMovement.monto / (1 - percentage / 100);
     const calculatedTax = Math.round(estimatedInvoiceTotal - modalMovement.monto);
     setTaxWithholding(calculatedTax);
-    initAllocationsForClient(selectedClientId, modalMovement.monto + calculatedTax);
+    initAllocationsForClient(selectedClientId, modalMovement.monto + calculatedTax + bankFee);
   };
 
   const handleSaveManualModal = () => {
@@ -190,14 +192,15 @@ export const ReconciliationView: React.FC = () => {
       const monto = Number(rawMonto) || 0;
       if (monto > 0) {
         allocationsList.push({ factura_id: fId, monto });
-        totalAllocated += monto;
+        const invoice = invoices.find(i => i.id === fId);
+        if (invoice) totalAllocated += convertMoney(monto, invoice.moneda, modalMovement.moneda, modalMovement.tipo_cambio ?? company.usdExchangeRate);
       }
     });
 
-    const effectiveTotal = modalMovement.monto + taxWithholding - bankFee;
+    const effectiveTotal = modalMovement.monto + taxWithholding + bankFee;
     const excess = Math.max(0, effectiveTotal - totalAllocated);
 
-    manualMatch(
+    const ok = manualMatch(
       modalMovement.id,
       selectedClientId,
       allocationsList,
@@ -207,6 +210,7 @@ export const ReconciliationView: React.FC = () => {
       bankFee
     );
 
+    if (!ok) return;
     setModalMovement(null);
 
     if (pendingItems.length <= 1) {
@@ -224,8 +228,11 @@ export const ReconciliationView: React.FC = () => {
     i => i.cliente_id === selectedClientId && i.saldo_pendiente > 0 && i.estado !== 'pagada' && i.estado !== 'anulada'
   );
 
-  const totalAllocatedInModal = Object.values(manualAllocations).reduce<number>((sum, val) => sum + (Number(val) || 0), 0);
-  const effectiveAvailableInModal = modalMovement ? (modalMovement.monto + taxWithholding - bankFee) : 0;
+  const totalAllocatedInModal = roundMoney(Object.entries(manualAllocations).reduce<number>((sum, [id, val]) => {
+    const invoice = invoices.find(i => i.id === id);
+    return sum + (invoice && modalMovement ? convertMoney(Number(val) || 0, invoice.moneda, modalMovement.moneda, modalMovement.tipo_cambio ?? company.usdExchangeRate) : 0);
+  }, 0));
+  const effectiveAvailableInModal = modalMovement ? roundMoney(modalMovement.monto + taxWithholding + bankFee) : 0;
   const excessCreditInModal = Math.max(0, effectiveAvailableInModal - totalAllocatedInModal);
   const remainingDeficitInModal = Math.max(0, totalAllocatedInModal - effectiveAvailableInModal);
 
@@ -241,7 +248,7 @@ export const ReconciliationView: React.FC = () => {
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Motor con coincidencia determinística, distancias de texto (Levenshtein), tolerancia a retenciones (1-3%) y análisis por IA.
+            Reglas locales, similitud de nombres y alias confirmados. Revisá las sugerencias antes de aprobar; la puntuación no es una probabilidad.
           </p>
         </div>
 
@@ -292,7 +299,7 @@ export const ReconciliationView: React.FC = () => {
               activeSubTab === 'auto100' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
-            <span>100% Auto</span>
+            <span>Referencia exacta</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold">
               {auto100Items.length}
             </span>
@@ -304,7 +311,7 @@ export const ReconciliationView: React.FC = () => {
               activeSubTab === 'auto85' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
-            <span>~85% Auto</span>
+            <span>Alta coincidencia</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-100 text-blue-800 font-bold">
               {auto85Items.length}
             </span>
@@ -416,7 +423,7 @@ export const ReconciliationView: React.FC = () => {
                           {isAuto && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                               <Sparkles className="h-3 w-3 mr-1 text-emerald-600 dark:text-emerald-400" />
-                              100% Automático
+                              Alta coincidencia
                             </span>
                           )}
                           {isSuggested && (
@@ -543,10 +550,10 @@ export const ReconciliationView: React.FC = () => {
                                   return (
                                      <tr key={f.factura_id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                                       <td className="px-3 py-2 font-mono font-bold text-blue-700">{f.factura_numero}</td>
-                                       <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-400">{company.currencySymbol} {f.importe.toLocaleString('es-UY')}</td>
-                                       <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-400">{company.currencySymbol} {f.saldo_pendiente.toLocaleString('es-UY')}</td>
+                                       <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-400">{f.moneda || 'UYU'} {f.importe.toLocaleString('es-UY')}</td>
+                                       <td className="px-3 py-2 text-right text-slate-600 dark:text-slate-400">{f.moneda || 'UYU'} {f.saldo_pendiente.toLocaleString('es-UY')}</td>
                                        <td className="px-3 py-2 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                                        {company.currencySymbol} {f.monto_a_aplicar.toLocaleString('es-UY')}
+                                        {f.moneda || 'UYU'} {f.monto_a_aplicar.toLocaleString('es-UY')}
                                       </td>
                                        <td className="px-3 py-2 text-right font-medium text-slate-700 dark:text-slate-300">
                                         {saldoRestante <= 0 ? (
@@ -554,7 +561,7 @@ export const ReconciliationView: React.FC = () => {
                                             Cancela total ($0)
                                           </span>
                                         ) : (
-                                          <span>{company.currencySymbol} {saldoRestante.toLocaleString('es-UY')}</span>
+                                          <span>{f.moneda || 'UYU'} {saldoRestante.toLocaleString('es-UY')}</span>
                                         )}
                                       </td>
                                     </tr>
@@ -580,7 +587,7 @@ export const ReconciliationView: React.FC = () => {
                                     <td className="px-3 py-2 font-mono font-bold text-blue-700">{app.factura_numero}</td>
                                      <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">{app.cliente_nombre}</td>
                                      <td className="px-3 py-2 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                                      {company.currencySymbol} {app.monto_aplicado.toLocaleString('es-UY')}
+                                      {app.moneda} {app.monto_aplicado.toLocaleString('es-UY')}
                                     </td>
                                      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{app.confirmado_por} ({app.fecha})</td>
                                   </tr>
@@ -709,7 +716,7 @@ export const ReconciliationView: React.FC = () => {
                       onChange={(e) => {
                         const val = parseFloat(e.target.value) || 0;
                         setTaxWithholding(val);
-                        initAllocationsForClient(selectedClientId, modalMovement.monto + val);
+                        initAllocationsForClient(selectedClientId, modalMovement.monto + val + bankFee);
                       }}
                       placeholder="$ 0"
                       className="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-xs font-bold text-amber-800"
@@ -767,7 +774,7 @@ export const ReconciliationView: React.FC = () => {
 
               {selectedClientInvoices.length === 0 ? (
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 rounded-xl p-4 text-xs text-amber-800">
-                  Este cliente no posee facturas pendientes. El monto disponible ({company.currencySymbol} {effectiveAvailableInModal.toLocaleString('es-UY')}) se guardará como <strong>Saldo a Favor (Crédito)</strong> para futuras facturas.
+                  Este cliente no posee facturas pendientes. El monto disponible ({modalMovement.moneda} {effectiveAvailableInModal.toLocaleString('es-UY')}) se guardará como <strong>Saldo a Favor (Crédito)</strong> para futuras facturas.
                 </div>
               ) : (
                 <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden max-h-52 overflow-y-auto">
@@ -817,38 +824,38 @@ export const ReconciliationView: React.FC = () => {
             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
               <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
                 <span>Depósito bancario transferido:</span>
-                <span className="font-bold text-slate-900 dark:text-white">{company.currencySymbol} {modalMovement.monto.toLocaleString('es-UY')}</span>
+                <span className="font-bold text-slate-900 dark:text-white">{modalMovement.moneda} {modalMovement.monto.toLocaleString('es-UY')}</span>
               </div>
               {taxWithholding > 0 && (
                 <div className="flex items-center justify-between text-amber-700 font-semibold">
                   <span>+ Retención fiscal reconocida:</span>
-                  <span>+{company.currencySymbol} {taxWithholding.toLocaleString('es-UY')}</span>
+                  <span>+{modalMovement.moneda} {taxWithholding.toLocaleString('es-UY')}</span>
                 </div>
               )}
               {bankFee > 0 && (
                 <div className="flex items-center justify-between text-red-700 font-semibold">
                   <span>- Gasto bancario deducido:</span>
-                  <span>-{company.currencySymbol} {bankFee.toLocaleString('es-UY')}</span>
+                  <span>+{modalMovement.moneda} {bankFee.toLocaleString('es-UY')}</span>
                 </div>
               )}
               <div className="flex items-center justify-between text-slate-800 dark:text-slate-200 font-bold border-t border-slate-200 dark:border-slate-700 pt-1">
                 <span>Total efectivo a conciliar:</span>
-                <span className="text-indigo-700 font-bold">{company.currencySymbol} {effectiveAvailableInModal.toLocaleString('es-UY')}</span>
+                <span className="text-indigo-700 font-bold">{modalMovement.moneda} {effectiveAvailableInModal.toLocaleString('es-UY')}</span>
               </div>
               <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
                 <span>Total imputado a facturas:</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">{company.currencySymbol} {totalAllocatedInModal.toLocaleString('es-UY')}</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{modalMovement.moneda} {totalAllocatedInModal.toLocaleString('es-UY')}</span>
               </div>
               {excessCreditInModal > 0 && (
                 <div className="flex items-center justify-between text-purple-700 font-semibold pt-1 border-t border-slate-200 dark:border-slate-700">
                   <span>Excedente como Saldo a Favor:</span>
-                  <span>+ {company.currencySymbol} {excessCreditInModal.toLocaleString('es-UY')}</span>
+                  <span>+ {modalMovement.moneda} {excessCreditInModal.toLocaleString('es-UY')}</span>
                 </div>
               )}
               {remainingDeficitInModal > 0 && (
                 <div className="flex items-center justify-between text-red-600 font-semibold pt-1 border-t border-slate-200 dark:border-slate-700">
                   <span>Error: Has asignado más del monto disponible por:</span>
-                  <span>- {company.currencySymbol} {remainingDeficitInModal.toLocaleString('es-UY')}</span>
+                  <span>- {modalMovement.moneda} {remainingDeficitInModal.toLocaleString('es-UY')}</span>
                 </div>
               )}
             </div>

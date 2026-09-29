@@ -28,10 +28,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       const data = await res.json();
 
       if (res.ok && data.ok) {
-        localStorage.setItem('conciliaya_session', data.token);
         onLogin();
       } else {
-        setError('Contraseña incorrecta');
+        setError(data.error || 'No se pudo iniciar sesión.');
         setPassword('');
       }
     } catch {
