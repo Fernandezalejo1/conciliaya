@@ -10,7 +10,6 @@
     "start": "node scripts/start.mjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "notify": "tsx discord-notify.ts",
     "test": "node --import tsx --test tests/*.test.ts",
     "check": "npm run lint && npm test && npm run build"
   },
