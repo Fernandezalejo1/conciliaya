@@ -20,12 +20,6 @@
 
 ConciliaYA es una herramienta web para empresas distribuidoras e importadoras que automatiza la conciliación de pagos bancarios con facturas pendientes. El cruce lo resuelve un **motor local determinista** (reglas, número de factura, monto, similitud de texto y alias aprendidos). No llama a servicios externos de IA ni depende de una API key para funcionar: todo el cálculo ocurre en tu navegador y con los datos que vos cargás.
 
-## Capturas
-
-<!-- Agregá tus screenshots acá -->
-<!-- ![Dashboard](assets/dashboard.png) -->
-<!-- ![Conciliación](assets/conciliacion.png) -->
-
 ## Características principales
 
 - **Conciliación automática** — Motor de matching con Levenshtein, aliases aprendidos y búsqueda por RUT/CI
@@ -42,17 +36,23 @@ ConciliaYA es una herramienta web para empresas distribuidoras e importadoras qu
 
 ## Capturas de pantalla
 
-| Dashboard | Subir Datos | Conciliación |
-|:---------:|:-----------:|:------------:|
-| ![Dashboard](assets/01-dashboard.png) | ![Upload](assets/02-upload.png) | ![Conciliación](assets/03-reconciliacion.png) |
+Cada imagen se abre a tamaño completo al hacer clic.
 
-| Cruce | Estados de Cuenta | Contabilidad |
-|:-----------:|:-----------------:|:------------:|
-| ![Matching](assets/04-matching.png) | ![Estados](assets/05-estados-cuenta.png) | ![Contabilidad](assets/06-contabilidad.png) |
+| Dashboard | Subir datos |
+|:---------:|:-----------:|
+| [![Dashboard](assets/01-dashboard.png)](assets/01-dashboard.png) | [![Subir datos](assets/02-upload.png)](assets/02-upload.png) |
+
+| Conciliación | Cruce |
+|:------------:|:-----:|
+| [![Conciliación](assets/03-reconciliacion.png)](assets/03-reconciliacion.png) | [![Cruce](assets/04-matching.png)](assets/04-matching.png) |
+
+| Estados de cuenta | Contabilidad |
+|:-----------------:|:------------:|
+| [![Estados de cuenta](assets/05-estados-cuenta.png)](assets/05-estados-cuenta.png) | [![Contabilidad](assets/06-contabilidad.png)](assets/06-contabilidad.png) |
 
 | Auditoría | Ajustes |
 |:---------:|:-------:|
-| ![Auditoría](assets/07-auditoria.png) | ![Ajustes](assets/08-ajustes.png) |
+| [![Auditoría](assets/07-auditoria.png)](assets/07-auditoria.png) | [![Ajustes](assets/08-ajustes.png)](assets/08-ajustes.png) |
 
 ## Stack tecnológico
 
