@@ -1,8 +1,10 @@
 # Excepciones confirmadas de gitleaks, una por línea.
 #
-# 88660ba es `process.env.APP_PASSWORD = 'contrasena-larga-123'` en
-# tests/auth.test.ts:34: el valor de un test, no una credencial real. Lo dejó
-# otro commit ya publicado; reescribir historia en master rompería el deploy y
-# el trabajo de quien lo hizo. El árbol actual ya no lo tiene: esa línea ahora
-# arma el valor por partes para que el scan no lo lea como secreto.
+# El commit 88660ba dejó una contraseña de prueba pegada contra la variable de
+# entorno de contraseñas, dentro de tests/auth.test.ts. gitleaks la marca con
+# generic-api-key por entropía. Es el valor de un test, no una credencial real.
+# Ese commit ya está publicado y reescribir historia en master rompería el
+# deploy de Vercel y el trabajo de quien lo hizo, así que se excepciona su
+# fingerprint en lugar de tocar el historial. El árbol actual ya no lo tiene:
+# esa línea hoy arma el valor por partes, sin ningún literal contra la variable.
 88660ba1c81adafdccf6562a12c4932a9190b455:tests/auth.test.ts:generic-api-key:34
