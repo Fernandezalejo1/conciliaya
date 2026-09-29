@@ -8,3 +8,8 @@
 # fingerprint en lugar de tocar el historial. El árbol actual ya no lo tiene:
 # esa línea hoy arma el valor por partes, sin ningún literal contra la variable.
 88660ba1c81adafdccf6562a12c4932a9190b455:tests/auth.test.ts:generic-api-key:34
+
+# La primera versión de este archivo citaba textualmente ese hallazgo en su
+# comentario, así que gitleaks la marcó a ella misma. Ese commit también queda
+# excepcionado: es el precio de haberlo escrito, y ya no se reproduce.
+a21a9e7fb125f11ec0931ca57498ae6c80b02e33:.gitleaksignore:generic-api-key:3
